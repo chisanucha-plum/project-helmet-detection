@@ -14,7 +14,7 @@ def draw_roi(event, x, y, flags, param):
     elif event == cv2.EVENT_RBUTTONDOWN and len(roi_points) > 2:  
         selecting_roi = False
 
-cap = cv2.VideoCapture('samui_.mp4') 
+cap = cv2.VideoCapture('case\case_4.mp4') 
 ret, frame = cap.read()
 cap.release()
 
