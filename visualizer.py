@@ -26,6 +26,7 @@ class DetectionVisualizer:
     def draw_detections(self, frame, results_helmet, results_person, roi_points):
         try:
             num_objects = 0
+            has_no_helmet = False  # เพิ่มตัวแปรเช็คคนไม่สวมหมวก
             
             # วาด ROI
             if roi_points is not None:
@@ -55,6 +56,8 @@ class DetectionVisualizer:
                     center_point = ((x1 + x2) / 2, (y1 + y2) / 2)
                     if self.is_in_roi(center_point, roi_points):
                         color = self.colors['helmet_off'] if int(cls) == 0 else self.colors['helmet_on']
+                        if int(cls) == 0:  # ถ้าเป็นคนไม่สวมหมวก
+                            has_no_helmet = True
                         cv2.rectangle(frame, 
                                     (int(x1), int(y1)), 
                                     (int(x2), int(y2)), 
@@ -71,7 +74,7 @@ class DetectionVisualizer:
             cv2.putText(frame, timestamp, (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
-            return frame, num_objects
+            return frame, has_no_helmet  # ส่งค่ากลับว่าพบคนไม่สวมหมวกหรือไม่
 
         except Exception as e:
             raise Exception(f"Visualization error: {str(e)}")

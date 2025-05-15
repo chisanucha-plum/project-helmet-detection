@@ -1,11 +1,12 @@
 # Configuration
-HELMET_MODEL_PATH = r'model\epoch150.pt'
+HELMET_MODEL_PATH = r'model\epoch250.pt'
 PERSON_MODEL_PATH = 'yolov8n.pt'
-VIDEO_PATH = r'case\case_1.mp4'
-ROI_POINTS =  [(228, 443), (613, 833), (2, 832), (1, 484)]
+VIDEO_PATH = r'case\case_03.mp4'
+ROI_POINTS =  [(1, 309), (406, 218), (1113, 591), (942, 755), (8, 757) ]
+
 HELMET_CONF_THRESHOLD = 0.50 #50%
 PERSON_CONF_THRESHOLD = 0.70 #70%
 HELMET_DETECTION_INTERVAL = 50
-# เพิ่มค่า config สำหรับกล้อง
-# USE_WEBCAM = True  # เปลี่ยนเป็น False ถ้าต้องการใช้วิดีโอ
-# WEBCAM_ID = 0     # เลข 0 คือกล้องแรกที่พบในระบบทำ
+
+USE_WEBCAM = True  # เปลี่ยนเป็น False ใช้วิดีโอ
+WEBCAM_ID = 0     
