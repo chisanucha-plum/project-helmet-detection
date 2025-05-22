@@ -1,6 +1,6 @@
 # Configuration
 HELMET_MODEL_PATH = r'model\epoch250.pt'
-PERSON_MODEL_PATH = 'yolov8n.pt'
+PERSON_MODEL_PATH = r'model\yolov8n.pt'
 VIDEO_PATH = r'case\case_03.mp4'
 ROI_POINTS =  [(1, 309), (406, 218), (1113, 591), (942, 755), (8, 757) ]
 
