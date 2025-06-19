@@ -1,4 +1,4 @@
-from ultralytics import YOLO  # เพิ่ม import YOLO
+from ultralytics import YOLO
 
 class ObjectDetect:
     def __init__(self, helmet_model_path, person_model_path):
