@@ -1,4 +1,3 @@
-# Configuration
 HELMET_MODEL_PATH = r'model\epoch250.pt'
 PERSON_MODEL_PATH = r'model\yolov8n.pt'
 VIDEO_PATH = r'case\case_03.mp4'
