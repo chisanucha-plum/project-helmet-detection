@@ -1,7 +1,8 @@
 services:
   helmet-detection:
     build: .
-    container_name: helmet-detection
     ports:
-      - "8000:8000"
-    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+      - "8201:8000"
+    volumes:
+      - .:/application
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
