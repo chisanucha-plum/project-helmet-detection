@@ -1,9 +1,9 @@
 import os
 import cv2
 import time
-from config import *
-from detector import ObjectDetect
-from visualizer import DetectionVisualizer
+from configuration import *
+from service.detector import ObjectDetect
+from service.visualizer import DetectionVisualizer
 
 def helmet_detection_stream():
     detector = ObjectDetect(HELMET_MODEL_PATH, PERSON_MODEL_PATH)
