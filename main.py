@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from helmet import helmet_detection_stream
 from fastapi.middleware.cors import CORSMiddleware
+from application.router.router import router
 
 app = FastAPI()
 
@@ -13,9 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/video_feed")
-def video_feed():
-    return StreamingResponse(helmet_detection_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
