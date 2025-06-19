@@ -1,26 +1,14 @@
-FROM python:3.12.9-slim
+FROM python:3.13-alpine
 
 WORKDIR /application
 COPY . .
 
-# ติดตั้ง system dependencies ที่จำเป็น
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgl1-mesa-glx \
-    tesseract-ocr \
-    tesseract-ocr-tha \
-    fonts-thai-tlwg \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip3 install --upgrade pip && \
+RUN apk update && \
+    apk add --no-cache \
+        build-base \
+        curl \
+        tzdata && \
+    pip3 install --upgrade pip && \
     pip3 install --no-cache-dir -r requirements.txt
 
-# ถ้าต้องการรัน FastAPI
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-
-# ถ้าต้องการรัน main.py (เช่นรัน batch หรือทดสอบ)
-# CMD ["python", "main.py"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "9"]
