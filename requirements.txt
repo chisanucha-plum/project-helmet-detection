@@ -1,8 +1,7 @@
 fastapi[standard]
-ultralytics
-requests
-torchtorchvision
-opencv-python
-
-
-
+ultralytics==8.0.103
+requests==2.32.3
+numpy==2.1.1
+opencv-python==4.11.0.86
+torch==2.3.0        
+torchvision==0.18.0
