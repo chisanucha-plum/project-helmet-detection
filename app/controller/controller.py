@@ -2,9 +2,9 @@ import logging
 import os
 import cv2
 from fastapi.responses import StreamingResponse
-from application.configuration import *
-from application.service.detector import ObjectDetect
-from application.service.visualizer import DetectionVisualizer
+from app.configuration import *
+from app.service.detector import ObjectDetect
+from app.service.visualizer import DetectionVisualizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from application.controller.controller import (
+from app.controller.controller import (
     helmet_detection_stream,
 )
 
