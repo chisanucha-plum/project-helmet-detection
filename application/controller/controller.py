@@ -9,7 +9,7 @@ from application.service.visualizer import DetectionVisualizer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def generate_frames():
+async def generate_frames():
     detector = ObjectDetect(HELMET_MODEL_PATH, PERSON_MODEL_PATH)
     visualizer = DetectionVisualizer()
     cap = cv2.VideoCapture(WEBCAM_ID if USE_WEBCAM else VIDEO_PATH)
