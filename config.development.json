@@ -1,0 +1,39 @@
+{
+  "detection_visualizer": {
+    "colors": {
+      "person": [203, 192, 255],
+      "helmet_on": [0, 255, 0],
+      "helmet_off": [0, 0, 255],
+      "roi": [255, 0, 0]
+    },
+    "person_validation": {
+      "min_height_width_ratio": 1.2
+    },
+    "timestamp_settings": {
+      "font": 0,
+      "scale": 1.0,
+      "color": [255, 255, 255],
+      "thickness": 2
+    },
+    "detection_settings": {
+      "font": 0,
+      "scale": 0.5,
+      "thickness": 2
+    },
+    "roi_points": [
+      [130, 40],[1350, 37], [1332, 717],[107, 697]
+    ]
+  },
+  "model_settings": {
+    "helmet_model_path": "train\\epoch250.pt",
+    "person_model_path": "train\\yolov8n.pt",
+    "helmet_conf_threshold": 0.50,
+    "person_conf_threshold": 0.70,
+    "helmet_detection_interval": 50
+  },
+  "application_settings": {
+    "video_path": "src\\case\\case_02.mp4",
+    "use_webcam": false,
+    "webcam_id": 0
+  }
+}
