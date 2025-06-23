@@ -5,14 +5,19 @@ from fastapi.responses import StreamingResponse
 from app.configuration import *
 from app.model.helmet import ObjectDetect
 from app.service.visualizer import DetectionVisualizer
+from app.configuration import Configuration
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def generate_frames():
-    detector = ObjectDetect(HELMET_MODEL_PATH, PERSON_MODEL_PATH)
+    config = Configuration.get_config()
+    detector = ObjectDetect(
+        config.model_settings.helmet_model_path,
+        config.model_settings.person_model_path
+    )
     visualizer = DetectionVisualizer()
-    cap = cv2.VideoCapture(WEBCAM_ID if USE_WEBCAM else VIDEO_PATH)
+    cap = cv2.VideoCapture(config.application_settings.webcam_id if config.application_settings.use_webcam else config.application_settings.video_path)
     if not cap.isOpened():
         logger.error("Cannot open video source")
         raise ValueError("Cannot open video source")
@@ -21,10 +26,10 @@ async def generate_frames():
         if not ret:
             break
         results_helmet, results_person = detector.detect(
-            frame, HELMET_CONF_THRESHOLD, PERSON_CONF_THRESHOLD
+            frame, config.model_settings.helmet_conf_threshold, config.model_settings.person_conf_threshold
         )
         frame, has_no_helmet = visualizer.draw_detections(
-            frame, results_helmet, results_person, ROI_POINTS
+            frame, results_helmet, results_person, config.detection_visualizer.roi_points
         )
         # encode frame as jpeg
         ret, buffer = cv2.imencode('.jpg', frame)
