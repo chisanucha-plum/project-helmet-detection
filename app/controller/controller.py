@@ -3,7 +3,7 @@ import os
 import cv2
 from fastapi.responses import StreamingResponse
 from app.configuration import *
-from app.service.detector import ObjectDetect
+from app.model.helmet import ObjectDetect
 from app.service.visualizer import DetectionVisualizer
 
 logging.basicConfig(level=logging.INFO)
