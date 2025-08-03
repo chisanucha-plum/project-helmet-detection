@@ -1,33 +1,43 @@
+from datetime import datetime
+
 import cv2
 import numpy as np
-from datetime import datetime
-from app.configuration import Configuration 
+
+from app.configuration import Configuration
+
 
 class DetectionVisualizer:
     """
     Class for drawing detection results (persons and helmets) onto video frames
     and checking various conditions such as ROI and object size.
     """
+
     def __init__(self):
         config = Configuration.get_config()
         # Define colors in BGR (Blue, Green, Red) format
         self.colors = {
-            'person': config.detection_visualizer.colors.person,
-            'helmet_on': config.detection_visualizer.colors.helmet_on,
-            'helmet_off': config.detection_visualizer.colors.helmet_off,
-            'roi': config.detection_visualizer.colors.roi
+            "person": config.detection_visualizer.colors.person,
+            "helmet_on": config.detection_visualizer.colors.helmet_on,
+            "helmet_off": config.detection_visualizer.colors.helmet_off,
+            "roi": config.detection_visualizer.colors.roi,
         }
         # Define constants for person size ratio
-        self.MIN_PERSON_HEIGHT_WIDTH_RATIO = config.detection_visualizer.person_validation.min_height_width_ratio
-        
+        self.MIN_PERSON_HEIGHT_WIDTH_RATIO = (
+            config.detection_visualizer.person_validation.min_height_width_ratio
+        )
+
         self.TIMESTAMP_FONT = config.detection_visualizer.timestamp_settings.font
         self.TIMESTAMP_SCALE = config.detection_visualizer.timestamp_settings.scale
         self.TIMESTAMP_COLOR = config.detection_visualizer.timestamp_settings.color
-        self.TIMESTAMP_THICKNESS = config.detection_visualizer.timestamp_settings.thickness
+        self.TIMESTAMP_THICKNESS = (
+            config.detection_visualizer.timestamp_settings.thickness
+        )
 
         self.DETECTION_FONT = cv2.FONT_HERSHEY_SIMPLEX
         self.DETECTION_SCALE = config.detection_visualizer.detection_settings.scale
-        self.DETECTION_THICKNESS = config.detection_visualizer.detection_settings.thickness
+        self.DETECTION_THICKNESS = (
+            config.detection_visualizer.detection_settings.thickness
+        )
 
     def is_in_roi(self, point, roi_points):
         """
@@ -35,8 +45,8 @@ class DetectionVisualizer:
         If no ROI is defined, it's always considered within the ROI.
         """
         if not roi_points:
-            return True 
-        
+            return True
+
         point_int = (int(point[0]), int(point[1]))
         return cv2.pointPolygonTest(np.array(roi_points), point_int, False) >= 0
 
@@ -54,30 +64,44 @@ class DetectionVisualizer:
         """
         Draws detection results (persons, helmets) and ROI onto the frame.
         """
-        found_person_no_helmet_in_roi = False 
-        
+        found_person_no_helmet_in_roi = False
+
         if roi_points:
             roi_np = np.array(roi_points, np.int32)
-            cv2.polylines(frame, [roi_np], True, self.colors['roi'], 2)
+            cv2.polylines(frame, [roi_np], True, self.colors["roi"], 2)
 
-        if hasattr(results_person, 'boxes') and results_person.boxes is not None and results_person.boxes.data is not None:
+        if (
+            hasattr(results_person, "boxes")
+            and results_person.boxes is not None
+            and results_person.boxes.data is not None
+        ):
             for box in results_person.boxes.data:
-                if len(box) < 6: 
+                if len(box) < 6:
                     continue
 
                 x1, y1, x2, y2 = map(int, box[:4])
-                
+
                 width = x2 - x1
                 height = y2 - y1
-                
-                if width > 0 and height > 0 and self.is_valid_person_size(width, height):
+
+                if (
+                    width > 0
+                    and height > 0
+                    and self.is_valid_person_size(width, height)
+                ):
                     center_x = (x1 + x2) / 2
                     center_y = (y1 + y2) / 2
-                    
+
                     if self.is_in_roi((center_x, center_y), roi_points):
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), self.colors['person'], 2)
-            
-        if hasattr(results_helmet, 'boxes') and results_helmet.boxes is not None and results_helmet.boxes.data is not None:
+                        cv2.rectangle(
+                            frame, (x1, y1), (x2, y2), self.colors["person"], 2
+                        )
+
+        if (
+            hasattr(results_helmet, "boxes")
+            and results_helmet.boxes is not None
+            and results_helmet.boxes.data is not None
+        ):
             for box in results_helmet.boxes.data:
                 if len(box) < 6:
                     continue
@@ -89,27 +113,42 @@ class DetectionVisualizer:
                 center_y = (y1 + y2) / 2
 
                 if self.is_in_roi((center_x, center_y), roi_points):
-                    is_no_helmet = (int(cls) == 0) # Class 0 usually means 'no_helmet' 
+                    is_no_helmet = int(cls) == 0  # Class 0 usually means 'no_helmet'
 
-                    color = self.colors['helmet_off'] if is_no_helmet else self.colors['helmet_on']
+                    color = (
+                        self.colors["helmet_off"]
+                        if is_no_helmet
+                        else self.colors["helmet_on"]
+                    )
                     label = "No Helmet" if is_no_helmet else "Helmet"
 
-                    if is_no_helmet: 
+                    if is_no_helmet:
                         found_person_no_helmet_in_roi = True
 
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, self.DETECTION_THICKNESS)
-                    
-                    cv2.putText(frame, 
-                                f"{label} {conf:.2f}", 
-                                (x1, y1 - 10), # Text position
-                                self.DETECTION_FONT, 
-                                self.DETECTION_SCALE, 
-                                color, 
-                                self.DETECTION_THICKNESS)
-                            
+                    cv2.rectangle(
+                        frame, (x1, y1), (x2, y2), color, self.DETECTION_THICKNESS
+                    )
+
+                    cv2.putText(
+                        frame,
+                        f"{label} {conf:.2f}",
+                        (x1, y1 - 10),  # Text position
+                        self.DETECTION_FONT,
+                        self.DETECTION_SCALE,
+                        color,
+                        self.DETECTION_THICKNESS,
+                    )
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cv2.putText(frame, timestamp, (10, 30), 
-                    self.TIMESTAMP_FONT, self.TIMESTAMP_SCALE, self.TIMESTAMP_COLOR, self.TIMESTAMP_THICKNESS)
+        cv2.putText(
+            frame,
+            timestamp,
+            (10, 30),
+            self.TIMESTAMP_FONT,
+            self.TIMESTAMP_SCALE,
+            self.TIMESTAMP_COLOR,
+            self.TIMESTAMP_THICKNESS,
+        )
 
         # Return the drawn frame and the status of finding a person without a helmet in ROI
         return frame, found_person_no_helmet_in_roi
