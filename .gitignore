@@ -1,44 +1,58 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.pyd
-.Python/
+*.so
+*.egg-info/
+.dist/
+.build/
+.tox/
+.nox/
+.pytest_cache/
+.coverage*
+
+htmlcov/
+
+# Virtual env
 env/
 venv/
 .venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.pytest_cache/
-htmlcov/
-.nox/
 
-# IDEs
-.idea/
+# IDE
 .vscode/
+.idea/
 *.swp
-*.bak
 *.swo
+*.bak
 
-# Data and Models (YOLO specific)
-*.pt  # PyTorch model weights
+# Logs
+logs/
+*.log
+
+# Models / Large weights
+*.pt
 *.pth
 *.onnx
 *.weights
-runs/  # YOLOv5/v8 training runs output
-results/
-logs/
-data/  # If you store large datasets locally
-datasets/
-models/ # If you store pre-trained models not part of the repo
+runs/
 checkpoints/
 
-# FastAPI specific
-.env # Environment variables (sensitive information)
+# Data (untracked large/local)
+datasets/
+data/
+results/
+
+# FastAPI / Env
+.env
+.env.*
 uvicorn.log
 
-# Operating System
+# Frontend (React / Node)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.eslintcache
+
+# OS
 .DS_Store
 Thumbs.db
