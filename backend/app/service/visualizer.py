@@ -2,7 +2,6 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-
 from app.configuration import Configuration
 
 
@@ -22,20 +21,20 @@ class DetectionVisualizer:
             "roi": config.detection_visualizer.colors.roi,
         }
         # Define constants for person size ratio
-        self.MIN_PERSON_HEIGHT_WIDTH_RATIO = (
+        self.min_person_height_width_ratio = (
             config.detection_visualizer.person_validation.min_height_width_ratio
         )
 
-        self.TIMESTAMP_FONT = config.detection_visualizer.timestamp_settings.font
-        self.TIMESTAMP_SCALE = config.detection_visualizer.timestamp_settings.scale
-        self.TIMESTAMP_COLOR = config.detection_visualizer.timestamp_settings.color
-        self.TIMESTAMP_THICKNESS = (
+        self.timestamp_font = config.detection_visualizer.timestamp_settings.font
+        self.timestamp_scale = config.detection_visualizer.timestamp_settings.scale
+        self.timestamp_color = config.detection_visualizer.timestamp_settings.color
+        self.timestamp_thickness = (
             config.detection_visualizer.timestamp_settings.thickness
         )
 
-        self.DETECTION_FONT = cv2.FONT_HERSHEY_SIMPLEX
-        self.DETECTION_SCALE = config.detection_visualizer.detection_settings.scale
-        self.DETECTION_THICKNESS = (
+        self.detection_font = cv2.FONT_HERSHEY_SIMPLEX
+        self.detection_scale = config.detection_visualizer.detection_settings.scale
+        self.detection_thickness = (
             config.detection_visualizer.detection_settings.thickness
         )
 
@@ -58,7 +57,7 @@ class DetectionVisualizer:
         if width <= 0:
             return False
         ratio = height / width
-        return ratio >= self.MIN_PERSON_HEIGHT_WIDTH_RATIO
+        return ratio >= self.min_person_height_width_ratio
 
     def draw_detections(self, frame, results_helmet, results_person, roi_points):
         """
@@ -126,17 +125,17 @@ class DetectionVisualizer:
                         found_person_no_helmet_in_roi = True
 
                     cv2.rectangle(
-                        frame, (x1, y1), (x2, y2), color, self.DETECTION_THICKNESS
+                        frame, (x1, y1), (x2, y2), color, self.detection_thickness
                     )
 
                     cv2.putText(
                         frame,
                         f"{label} {conf:.2f}",
                         (x1, y1 - 10),  # Text position
-                        self.DETECTION_FONT,
-                        self.DETECTION_SCALE,
+                        self.detection_font,
+                        self.detection_scale,
                         color,
-                        self.DETECTION_THICKNESS,
+                        self.detection_thickness,
                     )
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -144,10 +143,10 @@ class DetectionVisualizer:
             frame,
             timestamp,
             (10, 30),
-            self.TIMESTAMP_FONT,
-            self.TIMESTAMP_SCALE,
-            self.TIMESTAMP_COLOR,
-            self.TIMESTAMP_THICKNESS,
+            self.timestamp_font,
+            self.timestamp_scale,
+            self.timestamp_color,
+            self.timestamp_thickness,
         )
 
         # Return the drawn frame and the status of finding a person without a helmet in ROI
