@@ -1,0 +1,7 @@
+fastapi[standard]
+ultralytics
+requests
+numpy
+opencv-python
+torch
+torchvision

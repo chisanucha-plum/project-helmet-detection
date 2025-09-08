@@ -1,29 +1,19 @@
+# Ignore IDE folder
+.idea/
+
 # Python
 __pycache__/
 *.py[cod]
 *.pyd
 *.so
 *.egg-info/
-.dist/
-.build/
-.tox/
-.nox/
-.pytest_cache/
-.coverage*
-
-htmlcov/
+dist/
+build/
 
 # Virtual env
 env/
 venv/
 .venv/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.bak
 
 # Logs
 logs/
@@ -46,12 +36,6 @@ results/
 .env
 .env.*
 uvicorn.log
-
-# Frontend (React / Node)
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.eslintcache
 
 # OS
 .DS_Store

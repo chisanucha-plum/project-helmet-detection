@@ -1,10 +1,26 @@
 {
   "detection_visualizer": {
     "colors": {
-      "person": [203, 192, 255],
-      "helmet_on": [0, 255, 0],
-      "helmet_off": [0, 0, 255],
-      "roi": [255, 0, 0]
+      "person": [
+        203,
+        192,
+        255
+      ],
+      "helmet_on": [
+        0,
+        255,
+        0
+      ],
+      "helmet_off": [
+        0,
+        0,
+        255
+      ],
+      "roi": [
+        255,
+        0,
+        0
+      ]
     },
     "person_validation": {
       "min_height_width_ratio": 1.2
@@ -12,7 +28,11 @@
     "timestamp_settings": {
       "font": 0,
       "scale": 1.0,
-      "color": [255, 255, 255],
+      "color": [
+        255,
+        255,
+        255
+      ],
       "thickness": 2
     },
     "detection_settings": {
@@ -21,7 +41,22 @@
       "thickness": 2
     },
     "roi_points": [
-      [130, 40],[1350, 37], [1332, 717],[107, 697]
+      [
+        130,
+        40
+      ],
+      [
+        1350,
+        37
+      ],
+      [
+        1332,
+        717
+      ],
+      [
+        107,
+        697
+      ]
     ]
   },
   "model_settings": {
