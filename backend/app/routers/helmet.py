@@ -5,7 +5,7 @@ from fastapi import APIRouter, status
 from fastapi.responses import StreamingResponse
 
 from app.configuration import Configuration
-from app.model.helmet import ObjectDetect
+from app.service.detect import ObjectDetect
 from app.service.visualizer import DetectionVisualizer
 
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +16,7 @@ router = APIRouter(tags=["Helmet Detection"])
 
 async def generate_frames():
     config = Configuration.get_config()
-    detector = ObjectDetect(
+    detects = ObjectDetect(
         config.model_settings.helmet_model_path, config.model_settings.person_model_path
     )
     visualizer = DetectionVisualizer()
@@ -32,7 +32,7 @@ async def generate_frames():
         ret, frame = cap.read()
         if not ret:
             break
-        results_helmet, results_person = detector.detect(
+        results_helmet, results_person = detects.detect(
             frame,
             config.model_settings.helmet_conf_threshold,
             config.model_settings.person_conf_threshold,

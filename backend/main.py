@@ -21,5 +21,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "main:app", host="localhost", port=8011, reload=True, 
+        "main:app", host="localhost", port=8001, reload=True, 
     )
