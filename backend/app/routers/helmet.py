@@ -1,15 +1,17 @@
 import logging
 
 import cv2
+from fastapi import APIRouter, status
 from fastapi.responses import StreamingResponse
 
-from app.configuration import *
 from app.configuration import Configuration
 from app.model.helmet import ObjectDetect
 from app.service.visualizer import DetectionVisualizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["Helmet Detection"])
 
 
 async def generate_frames():
@@ -48,6 +50,7 @@ async def generate_frames():
     cap.release()
 
 
+@router.get("/detect", status_code=status.HTTP_200_OK)
 async def helmet_detection_stream():
     return StreamingResponse(
         generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame"
