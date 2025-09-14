@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, Car, Download, Shield, TrendingDown, TrendingUp, Users } from "lucide-react"
+import { AlertTriangle, BikeIcon, Download, Shield, TrendingDown, TrendingUp, Users } from "lucide-react"
 import { useState } from "react"
 import {
   Area,
@@ -113,7 +113,7 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Car className="h-6 w-6 text-blue-600" />
+                <BikeIcon className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -149,7 +149,7 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Car className="h-6 w-6 text-purple-600" />
+                <BikeIcon className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
