@@ -67,7 +67,7 @@
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "src\\case\\case_02.mp4",
+    "video_path": "..\\src\\case\\case_02.mp4",
     "use_webcam": false,
     "webcam_id": 0
   }
