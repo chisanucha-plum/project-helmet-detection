@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users } from "lucide-react"
+import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { mockDetections } from "@/mocks/realTimeMocks"
@@ -196,7 +196,7 @@ export function RealTimeMonitoring() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Car className="h-5 w-5 text-blue-600" />
+                <BikeIcon className="h-5 w-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">มอเตอร์ไซค์ที่ตรวจพบ</p>
