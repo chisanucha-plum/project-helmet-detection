@@ -229,7 +229,7 @@ export function RealTimeMonitoring() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Camera className="h-5 w-5" />
-              กล้องหลัก - ประตูทางเข้า
+              กล้องหลัก - ตรวจจับผู้ขับขี่
               <Badge variant="secondary" className="ml-auto">
                 Live
               </Badge>
@@ -254,7 +254,7 @@ export function RealTimeMonitoring() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Camera className="h-5 w-5" />
-              กล้องรอง - ลานจอดรถ
+              กล้องรอง - ตรวจจับป้ายทะเบียน
               <Badge variant="secondary" className="ml-auto">
                 Live
               </Badge>
