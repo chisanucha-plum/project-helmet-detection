@@ -40,24 +40,7 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points": [
-      [
-        130,
-        40
-      ],
-      [
-        1350,
-        37
-      ],
-      [
-        1332,
-        717
-      ],
-      [
-        107,
-        697
-      ]
-    ]
+    "roi_points": [[41,776],[25,365],[245,303],[362,773]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
