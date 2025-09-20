@@ -20,7 +20,7 @@ interface DetectionResult {
 }
 
 export function RealTimeMonitoring() {
-  const [detections, setDetections] = useState<DetectionResult[]>(mockDetections)
+  const [detections] = useState<DetectionResult[]>(mockDetections)
   const [isRecording, setIsRecording] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -33,102 +33,45 @@ export function RealTimeMonitoring() {
     return () => clearInterval(timer)
   }, [])
 
-  // Simulate real-time detection updates
+  // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
+  const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
+
   useEffect(() => {
-    let abortController: AbortController | null = null
-
-    async function startStream() {
-      abortController = new AbortController()
-      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}helmet/detect`
-
-      try {
-        const res = await fetch(url, { signal: abortController.signal })
-        if (!res.ok) {
-          console.warn('Stream endpoint returned', res.status)
-          return
-        }
-
-        if (!res.body) {
-          console.warn('No response body from stream endpoint')
-          return
-        }
-
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buf = ''
-
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) break
-          buf += decoder.decode(value, { stream: true })
-
-          // split into lines and keep remainder in buf
-          const parts = buf.split(/\r?\n/)
-          buf = parts.pop() ?? ''
-
-          for (const raw of parts) {
-            let line = raw.trim()
-            if (!line) continue
-
-            // handle SSE-style lines starting with "data:"
-            if (line.startsWith('data:')) {
-              line = line.replace(/^data:\s?/, '')
-            }
-
-            try {
-              const payload = JSON.parse(line)
-
-              const mapped: DetectionResult = {
-                id: String(payload.id ?? Date.now()),
-                timestamp: payload.timestamp ?? new Date().toLocaleTimeString('th-TH'),
-                camera: payload.camera ?? 'กล้องไม่ทราบ',
-                licensePlate: payload.license_plate ?? payload.licensePlate ?? 'ไม่พบ',
-                helmetStatus: payload.helmet === false ? 'not-wearing' : 'wearing',
-                passengerCount: payload.person_count ?? payload.passengerCount ?? 1,
-                confidence: payload.confidence ?? 0,
-                imageUrl: payload.image_url ?? payload.imageUrl,
-              }
-
-              setDetections((prev) => [mapped, ...prev].slice(0, 10))
-            } catch (err) {
-              console.warn('Failed to parse streamed line', err)
-            }
-          }
-        }
-
-        // flush any remainder
-        if (buf.trim()) {
-          try {
-            const payload = JSON.parse(buf.trim())
-            const mapped: DetectionResult = {
-              id: String(payload.id ?? Date.now()),
-              timestamp: payload.timestamp ?? new Date().toLocaleTimeString('th-TH'),
-              camera: payload.camera ?? 'กล้องไม่ทราบ',
-              licensePlate: payload.license_plate ?? payload.licensePlate ?? 'ไม่พบ',
-              helmetStatus: payload.helmet === false ? 'not-wearing' : 'wearing',
-              passengerCount: payload.person_count ?? payload.passengerCount ?? 1,
-              confidence: payload.confidence ?? 0,
-              imageUrl: payload.image_url ?? payload.imageUrl,
-            }
-            setDetections((prev) => [mapped, ...prev].slice(0, 10))
-          } catch (err) {
-            // ignore
-          }
-        }
-      } catch (e) {
-        if ((e as any)?.name === 'AbortError') return
-        console.warn('Error reading stream /detect/helmet', e)
-      }
-    }
-
-    if (isRecording) {
-      // start streaming; will run until aborted
-      startStream()
-    }
-
-    return () => {
-      if (abortController) abortController.abort()
-    }
+    // Old fetch/reader approach (commented out):
+    // const res = await fetch(url, { signal: abortController.signal })
+    // const reader = res.body.getReader()
+    // while (true) {
+    //   const { done, value } = await reader.read()
+    //   if (done) break
+    //   const chunk = decoder.decode(value, { stream: true })
+    //   buffer += chunk
+    //   // Parse multipart boundary and extract JSON payload
+    //   // if (buf.trim()) {
+    //   //   try {
+    //   //     const payload = JSON.parse(buf.trim())
+    //   //     const mapped: DetectionResult = {
+    //   //       id: String(payload.id ?? Date.now()),
+    //   //       timestamp: payload.timestamp ?? new Date().toLocaleTimeString('th-TH'),
+    //   //       camera: payload.camera ?? 'กล้องไม่ทราบ',
+    //   //       licensePlate: payload.license_plate ?? payload.licensePlate ?? 'ไม่ทราบ',
+    //   //       helmetStatus: payload.helmet_status === false ? 'not-wearing' : 'wearing',
+    //   //       passengerCount: payload.person_count ?? payload.passengerCount ?? 1,
+    //   //       confidence: payload.confidence ?? 0,
+    //   //       imageUrl: payload.image_url ?? payload.imageUrl,
+    //   //     }
+    //   //     setDetections(prev => [mapped, ...prev.slice(0, 10)])
+    //   //   } catch (e) { console.error('Parse error:', e) }
+    //   // }
+    //   // const detection = JSON.parse(payloadJson)
+    //   // setDetections(prev => [detection, ...prev.slice(0, 99)])
+    // }
+    
+    // New simple approach: use <img> with MJPEG URL
+    const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+    const url = `${base}/helmet/detect`
+    console.log('MJPEG Stream URL:', url)
+    if (isRecording) setMjpegUrl(url)
+    else setMjpegUrl(undefined)
   }, [isRecording])
 
   const todayViolations = detections.filter((d) => d.helmetStatus === "not-wearing").length
@@ -237,11 +180,14 @@ export function RealTimeMonitoring() {
           </CardHeader>
           <CardContent>
             <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20"></div>
-              <div className="relative z-10 text-center">
-                <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <span className="text-muted-foreground">Live Video Feed</span>
-              </div>
+              {mjpegUrl ? (
+                <img id="mjpeg-stream" src={mjpegUrl} alt="Live MJPEG" className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="relative z-10 text-center">
+                  <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <span className="text-muted-foreground">Live Video Feed</span>
+                </div>
+              )}
               <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 REC
