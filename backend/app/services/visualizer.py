@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import cv2
 import numpy as np
 from app.configuration import Configuration
@@ -73,105 +71,123 @@ class DetectionVisualizer:
         """
         Draws detection results (motorcycles, helmets) and ROI onto the frame.
         """
-        found_person_no_helmet_in_roi = False
+        self._draw_roi(frame, roi_points)
+        self._draw_motorcycles(frame, results_motorcycle, roi_points)
 
+        found_person_no_helmet_in_roi = self._draw_helmets(
+            frame, results_helmet, roi_points
+        )
+        # self._draw_timestamp(frame)
+
+        # Return the drawn frame and the status of finding a person without a helmet in ROI
+        return frame, found_person_no_helmet_in_roi
+
+    def _draw_roi(self, frame, roi_points):
+        """Draw the ROI polygon on the frame if roi_points exist."""
         if roi_points:
             roi_np = np.array(roi_points, np.int32)
             cv2.polylines(frame, [roi_np], True, self.colors["roi"], 2)
 
-        # Draw motorcycle detections
-        if (
+    def _draw_motorcycles(self, frame, results_motorcycle, roi_points):
+        """Draw motorcycle boxes and labels."""
+        if not (
             hasattr(results_motorcycle, "boxes")
             and results_motorcycle.boxes is not None
             and results_motorcycle.boxes.data is not None
         ):
-            for box in results_motorcycle.boxes.data:
-                if len(box) < 6:
-                    continue
+            return
 
-                x1, y1, x2, y2 = map(int, box[:4])
+        for box in results_motorcycle.boxes.data:
+            if len(box) < 6:
+                continue
 
-                width = x2 - x1
-                height = y2 - y1
+            x1, y1, x2, y2 = map(int, box[:4])
 
-                if (
-                    width > 0
-                    and height > 0
-                    and self.is_valid_motorcycle_size(width, height)
-                ):
-                    center_x = (x1 + x2) / 2
-                    center_y = (y1 + y2) / 2
+            width = x2 - x1
+            height = y2 - y1
 
-                    if self.is_in_roi((center_x, center_y), roi_points):
-                        # Use motorcycle color
-                        cv2.rectangle(
-                            frame, (x1, y1), (x2, y2), self.colors["motorcycle"], 2
-                        )
+            if width <= 0 or height <= 0:
+                continue
 
-                        # Add motorcycle label
-                        cv2.putText(
-                            frame,
-                            "Motorcycle",
-                            (x1, y1 - 10),
-                            self.detection_font,
-                            self.detection_scale,
-                            self.colors["motorcycle"],
-                            self.detection_thickness,
-                        )
+            if not self.is_valid_motorcycle_size(width, height):
+                continue
 
-        # Draw helmet detections
-        if (
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+
+            if not self.is_in_roi((center_x, center_y), roi_points):
+                continue
+
+            # Use motorcycle color
+            cv2.rectangle(frame, (x1, y1), (x2, y2), self.colors["motorcycle"], 2)
+
+            # Add motorcycle label
+            cv2.putText(
+                frame,
+                "Motorcycle",
+                (x1, y1 - 10),
+                self.detection_font,
+                self.detection_scale,
+                self.colors["motorcycle"],
+                self.detection_thickness,
+            )
+
+    def _draw_helmets(self, frame, results_helmet, roi_points):
+        """Draw helmet/no-helmet boxes and labels, return True if a no-helmet person in ROI is found."""
+        found_person_no_helmet_in_roi = False
+
+        if not (
             hasattr(results_helmet, "boxes")
             and results_helmet.boxes is not None
             and results_helmet.boxes.data is not None
         ):
-            for box in results_helmet.boxes.data:
-                if len(box) < 6:
-                    continue
+            return found_person_no_helmet_in_roi
 
-                x1, y1, x2, y2, conf, cls = box[:6]
-                x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+        for box in results_helmet.boxes.data:
+            if len(box) < 6:
+                continue
 
-                center_x = (x1 + x2) / 2
-                center_y = (y1 + y2) / 2
+            x1, y1, x2, y2, conf, cls = box[:6]
+            x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
 
-                if self.is_in_roi((center_x, center_y), roi_points):
-                    is_no_helmet = int(cls) == 0  # Class 0 usually means 'no_helmet'
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
 
-                    color = (
-                        self.colors["helmet_off"]
-                        if is_no_helmet
-                        else self.colors["helmet_on"]
-                    )
-                    label = "No Helmet" if is_no_helmet else "Helmet"
+            if not self.is_in_roi((center_x, center_y), roi_points):
+                continue
 
-                    if is_no_helmet:
-                        found_person_no_helmet_in_roi = True
+            is_no_helmet = int(cls) == 0  # Class 0 usually means 'no_helmet'
+            color = (
+                self.colors["helmet_off"] if is_no_helmet else self.colors["helmet_on"]
+            )
+            label = "No Helmet" if is_no_helmet else "Helmet"
 
-                    cv2.rectangle(
-                        frame, (x1, y1), (x2, y2), color, self.detection_thickness
-                    )
+            if is_no_helmet:
+                found_person_no_helmet_in_roi = True
 
-                    cv2.putText(
-                        frame,
-                        f"{label} {conf:.2f}",
-                        (x1, y1 - 10),  # Text position
-                        self.detection_font,
-                        self.detection_scale,
-                        color,
-                        self.detection_thickness,
-                    )
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, self.detection_thickness)
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cv2.putText(
-            frame,
-            timestamp,
-            (10, 30),
-            self.timestamp_font,
-            self.timestamp_scale,
-            self.timestamp_color,
-            self.timestamp_thickness,
-        )
+            cv2.putText(
+                frame,
+                f"{label} {conf:.2f}",
+                (x1, y1 - 10),  # Text position
+                self.detection_font,
+                self.detection_scale,
+                color,
+                self.detection_thickness,
+            )
 
-        # Return the drawn frame and the status of finding a person without a helmet in ROI
-        return frame, found_person_no_helmet_in_roi
+        return found_person_no_helmet_in_roi
+
+    # def _draw_timestamp(self, frame):
+    #     """Draw the current timestamp on the frame."""
+    #     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #     cv2.putText(
+    #         frame,
+    #         timestamp,
+    #         (10, 30),
+    #         self.timestamp_font,
+    #         self.timestamp_scale,
+    #         self.timestamp_color,
+    #         self.timestamp_thickness,
+    #     )
