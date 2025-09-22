@@ -4,3 +4,5 @@ numpy
 opencv-python
 torch
 torchvision
+google-genai
+python-dotenv

@@ -42,10 +42,9 @@ checkpoints/
 datasets/
 data/
 results/
-
+snapshots/
 # FastAPI / Env
 .env
-.env.*
 uvicorn.log
 
 # Frontend (React / Node)

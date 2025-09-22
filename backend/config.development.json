@@ -1,7 +1,7 @@
 {
   "detection_visualizer": {
     "colors": {
-      "person": [
+      "motorcycle": [
         203,
         192,
         255
@@ -22,8 +22,9 @@
         0
       ]
     },
-    "person_validation": {
-      "min_height_width_ratio": 1.2
+    "motorcycle_validation": {
+      "min_width": 50,
+      "min_height": 40
     },
     "timestamp_settings": {
       "font": 0,
@@ -40,35 +41,23 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points": [
-      [
-        130,
-        40
-      ],
-      [
-        1350,
-        37
-      ],
-      [
-        1332,
-        717
-      ],
-      [
-        107,
-        697
-      ]
-    ]
+    "roi_points":[[82,346],[486,342],[543,765],[68,765]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
-    "person_model_path": "train\\yolov8n.pt",
+    "motorcycle_model_path": "train\\yolov8n.pt",
     "helmet_conf_threshold": 0.50,
-    "person_conf_threshold": 0.70,
+    "motorcycle_conf_threshold": 0.70,
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "..\\src\\case\\case_02.mp4",
+    "video_path": "..\\src\\case\\case_1.mp4",
     "use_webcam": false,
     "webcam_id": 0
+  },
+  "gemeni": {
+    "model": "gemini-1.5-flash",
+    "api_key_env": "GEMINI_API_KEY"
   }
+
 }

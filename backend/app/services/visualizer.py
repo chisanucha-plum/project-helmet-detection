@@ -15,14 +15,17 @@ class DetectionVisualizer:
         config = Configuration.get_config()
         # Define colors in BGR (Blue, Green, Red) format
         self.colors = {
-            "person": config.detection_visualizer.colors.person,
+            "motorcycle": config.detection_visualizer.colors.motorcycle,
             "helmet_on": config.detection_visualizer.colors.helmet_on,
             "helmet_off": config.detection_visualizer.colors.helmet_off,
             "roi": config.detection_visualizer.colors.roi,
         }
-        # Define constants for person size ratio
-        self.min_person_height_width_ratio = (
-            config.detection_visualizer.person_validation.min_height_width_ratio
+        # Define constants for motorcycle size validation
+        self.min_motorcycle_width = (
+            config.detection_visualizer.motorcycle_validation.min_width
+        )
+        self.min_motorcycle_height = (
+            config.detection_visualizer.motorcycle_validation.min_height
         )
 
         self.timestamp_font = config.detection_visualizer.timestamp_settings.font
@@ -49,19 +52,26 @@ class DetectionVisualizer:
         point_int = (int(point[0]), int(point[1]))
         return cv2.pointPolygonTest(np.array(roi_points), point_int, False) >= 0
 
-    def is_valid_person_size(self, width, height):
+    def is_valid_motorcycle_size(self, width, height):
         """
-        Checks if the bounding box size is appropriate for a person,
-        based on height-to-width ratio. Prevents division by zero.
+        Checks if the bounding box size is appropriate for a motorcycle.
+        Uses configuration values for minimum width and height.
         """
-        if width <= 0:
+        if width <= 0 or height <= 0:
             return False
-        ratio = height / width
-        return ratio >= self.min_person_height_width_ratio
 
-    def draw_detections(self, frame, results_helmet, results_person, roi_points):
+        # Check minimum size requirements from configuration
+        if width < self.min_motorcycle_width or height < self.min_motorcycle_height:
+            return False
+
+        # Motorcycles are generally wider than tall (ratio < 1) or close to square
+        # ใช้ ratio ที่เหมาะสำหรับมอเตอร์ไซค์: 0.3 <= ratio <= 2.0
+        ratio = height / width
+        return 0.3 <= ratio <= 2.0  # More flexible ratio for motorcycles
+
+    def draw_detections(self, frame, results_helmet, results_motorcycle, roi_points):
         """
-        Draws detection results (persons, helmets) and ROI onto the frame.
+        Draws detection results (motorcycles, helmets) and ROI onto the frame.
         """
         found_person_no_helmet_in_roi = False
 
@@ -69,12 +79,13 @@ class DetectionVisualizer:
             roi_np = np.array(roi_points, np.int32)
             cv2.polylines(frame, [roi_np], True, self.colors["roi"], 2)
 
+        # Draw motorcycle detections
         if (
-            hasattr(results_person, "boxes")
-            and results_person.boxes is not None
-            and results_person.boxes.data is not None
+            hasattr(results_motorcycle, "boxes")
+            and results_motorcycle.boxes is not None
+            and results_motorcycle.boxes.data is not None
         ):
-            for box in results_person.boxes.data:
+            for box in results_motorcycle.boxes.data:
                 if len(box) < 6:
                     continue
 
@@ -86,16 +97,29 @@ class DetectionVisualizer:
                 if (
                     width > 0
                     and height > 0
-                    and self.is_valid_person_size(width, height)
+                    and self.is_valid_motorcycle_size(width, height)
                 ):
                     center_x = (x1 + x2) / 2
                     center_y = (y1 + y2) / 2
 
                     if self.is_in_roi((center_x, center_y), roi_points):
+                        # Use motorcycle color
                         cv2.rectangle(
-                            frame, (x1, y1), (x2, y2), self.colors["person"], 2
+                            frame, (x1, y1), (x2, y2), self.colors["motorcycle"], 2
                         )
 
+                        # Add motorcycle label
+                        cv2.putText(
+                            frame,
+                            "Motorcycle",
+                            (x1, y1 - 10),
+                            self.detection_font,
+                            self.detection_scale,
+                            self.colors["motorcycle"],
+                            self.detection_thickness,
+                        )
+
+        # Draw helmet detections
         if (
             hasattr(results_helmet, "boxes")
             and results_helmet.boxes is not None
