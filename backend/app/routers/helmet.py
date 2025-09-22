@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import time
@@ -25,9 +24,7 @@ SNAPSHOT_DIR = "snapshots"
 # Global tracking variables
 # ตัวแปรสำหรับติดตามวัตถุ
 tracked_objects: Dict[str, float] = {}  # object_id -> last_seen_time (เวลาที่เจอครั้งล่าสุด)
-COOLDOWN_SECONDS = (
-    10.0  # Don't capture same object within 10 seconds (ห้ามจับวัตถุเดิมภายใน 10 วินาที)
-)
+COOLDOWN_SECONDS = 8.0  # Reduced to 8s - allow more captures while preventing duplicates (ลดเป็น 8 วินาที)
 
 
 def is_motorcycle_in_center_roi(bbox, roi_points) -> bool:
@@ -60,9 +57,11 @@ def is_motorcycle_in_center_roi(bbox, roi_points) -> bool:
     roi_width = max(roi_x_coords) - min(roi_x_coords)
     roi_height = max(roi_y_coords) - min(roi_y_coords)
 
-    # Define center area as 30% of ROI size around center
-    center_threshold_x = roi_width * 0.15  # 15% on each side = 30% total
-    center_threshold_y = roi_height * 0.15
+    # Define center area as 26% of ROI size around center (balanced precision)
+    center_threshold_x = (
+        roi_width * 0.13
+    )  # 13% on each side = 26% total (balanced capture rate)
+    center_threshold_y = roi_height * 0.13
 
     # Check if motorcycle center is in ROI center area
     distance_from_center_x = abs(motorcycle_center[0] - roi_center_x)
@@ -81,9 +80,9 @@ def calculate_motorcycle_id(bbox) -> str:
     x1, y1, x2, y2 = bbox
     center_x = int((x1 + x2) / 2)
     center_y = int((y1 + y2) / 2)
-    # Create stable ID based on position grid (larger grid for less sensitivity)
-    # สร้าง ID ที่เสถียรจากตาราง grid ตำแหน่ง (grid ใหญ่เพื่อลดความไว)
-    return f"mc_{center_x // 100}_{center_y // 100}"
+    # Create stable ID based on position grid (balanced precision)
+    # สร้าง ID จากตาราง grid ตำแหน่ง
+    return f"mc_{center_x // 85}_{center_y // 85}"  # 85x85 grid - balanced between precision and capture rate
 
 
 def should_capture_object(object_id: str) -> bool:
@@ -103,7 +102,6 @@ def should_capture_object(object_id: str) -> bool:
 def crop_roi_area(frame, roi_points):
     """
     Crop frame to ROI area only to save storage space.
-    เฉพาะพื้นที่ ROI เพื่อประหยัดเนื้อที่
     """
     if not roi_points or len(roi_points) < 3:
         return frame  # Return original frame if no ROI defined
@@ -225,90 +223,8 @@ async def generate_frames():
     cap.release()
 
 
-def generate_events():
-    """Synchronous generator that yields Server-Sent Events (SSE) with JSON payloads.
-
-    Endpoint: /helmet/events
-    """
-    config = Configuration.get_config()
-    detects = ObjectDetect(
-        config.model_settings.helmet_model_path,
-        config.model_settings.motorcycle_model_path,
-    )
-    visualizer = DetectionVisualizer()
-    cap = cv2.VideoCapture(
-        config.application_settings.webcam_id
-        if config.application_settings.use_webcam
-        else config.application_settings.video_path
-    )
-    if not cap.isOpened():
-        logger.error(VIDEO_SOURCE_ERROR)
-        raise ValueError(VIDEO_SOURCE_ERROR)
-
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            # perform detection
-            results_helmet, results_motorcycle = detects.detect(
-                frame,
-                config.model_settings.helmet_conf_threshold,
-                config.model_settings.motorcycle_conf_threshold,
-            )
-
-            # visualizer returns (frame_with_drawings, has_no_helmet)
-            _, has_no_helmet = visualizer.draw_detections(
-                frame,
-                results_helmet,
-                results_motorcycle,
-                config.detection_visualizer.roi_points,
-            )
-
-            motorcycle_count = 0
-            try:
-                motorcycle_count = (
-                    len(results_motorcycle.boxes.xyxy)
-                    if hasattr(results_motorcycle, "boxes")
-                    else 0
-                )
-            except Exception:
-                try:
-                    motorcycle_count = (
-                        len(results_motorcycle.boxes)
-                        if hasattr(results_motorcycle, "boxes")
-                        else 0
-                    )
-                except Exception:
-                    motorcycle_count = 0
-
-            payload = {
-                "id": int(time.time() * 1000),
-                "timestamp": datetime.now().isoformat(),
-                "camera": config.application_settings.video_path
-                if not config.application_settings.use_webcam
-                else f"webcam:{config.application_settings.webcam_id}",
-                "helmet": False if has_no_helmet else True,
-                "motorcycle_count": int(motorcycle_count),
-            }
-
-            yield f"data: {json.dumps(payload)}\n\n"
-
-            # sleep a bit to avoid flooding; use interval from config if available
-            time.sleep(max(0.05, getattr(config, "detection_interval", 0.1)))
-    finally:
-        cap.release()
-
-
 @router.get("/detect", status_code=status.HTTP_200_OK)
 async def helmet_detection_stream():
     return StreamingResponse(
         generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame"
     )
-
-
-@router.get("/events", status_code=status.HTTP_200_OK)
-async def helmet_events_stream():
-    """Server-Sent Events endpoint returning JSON payloads for each detection frame."""
-    return StreamingResponse(generate_events(), media_type="text/event-stream")
