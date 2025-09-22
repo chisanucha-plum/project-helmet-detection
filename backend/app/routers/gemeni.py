@@ -90,20 +90,18 @@ async def analyze_helmet_compliance_endpoint():
 
     # Create image info
     image_info = ImageInfo(
-        filename=os.path.basename(latest_image),
-        full_path=latest_image,
-        timestamp=datetime.fromtimestamp(
-            file_stats.st_mtime, tz=THAILAND_TZ
-        ).isoformat(),
+        filename=latest_image,
+        timestamp=datetime.fromtimestamp(file_stats.st_mtime, tz=THAILAND_TZ).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        ),
         file_size=file_stats.st_size,
-        exists=os.path.exists(latest_image),
     )
 
     response_data = HelmetComplianceResponse(
         success=True,
         analysis=analysis_result,
         image_info=image_info,
-        analysis_timestamp=get_thailand_datetime().isoformat(),
+        analysis_timestamp=get_thailand_datetime().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
     return response_data
@@ -143,13 +141,11 @@ async def get_latest_snapshot_info():
     response_data = LatestSnapshotResponse(
         success=True,
         image_info=ImageInfo(
-            filename=os.path.basename(latest_image),
-            full_path=latest_image,
+            filename=latest_image,
             timestamp=datetime.fromtimestamp(
                 file_stats.st_mtime, tz=THAILAND_TZ
-            ).isoformat(),
+            ).strftime("%Y-%m-%d %H:%M:%S"),
             file_size=file_stats.st_size,
-            exists=os.path.exists(latest_image),
         ),
         snapshots_directory=SnapshotDirectoryInfo(
             path=SNAPSHOT_DIR,

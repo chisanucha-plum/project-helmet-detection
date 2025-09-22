@@ -20,13 +20,11 @@ class AnalysisResult(BaseModel):
 class ImageInfo(BaseModel):
     """Image information schema."""
 
-    filename: str = Field(..., description="Name of the image file")
-    full_path: str = Field(..., description="Full path to the image file")
+    filename: str = Field(..., description="Full path to the image file")
     timestamp: str = Field(
         ..., description="Image file modification timestamp (Thailand time)"
     )
     file_size: Optional[int] = Field(None, description="File size in bytes")
-    exists: Optional[bool] = Field(None, description="Whether the file exists")
 
 
 class SnapshotDirectoryInfo(BaseModel):

@@ -107,7 +107,6 @@ class GeminiService:
     def _parse_to_analysis_result(self, raw_text: str) -> AnalysisResult:
         """Parse Gemini JSON response to AnalysisResult schema."""
         try:
-            # Clean up the response - remove markdown code blocks if present
             cleaned_text = raw_text.strip()
 
             # Remove markdown code blocks (```json ... ```)
@@ -124,7 +123,6 @@ class GeminiService:
                         json_lines.append(line)
                 cleaned_text = "\n".join(json_lines)
 
-            # Parse the cleaned JSON
             data = json.loads(cleaned_text)
             return AnalysisResult(
                 helmet=data.get("helmet"),
@@ -148,33 +146,6 @@ class GeminiService:
         ตรวจสอบว่าบริการ Gemini พร้อมใช้งานหรือไม่
         """
         return self.client is not None
-
-
-def analyze_snapshot_image(image_path: str) -> dict:
-    """
-    Convenience function to analyze a snapshot image.
-    ฟังก์ชันสำหรับวิเคราะห์ภาพ snapshot อย่างง่าย
-
-    Args:
-        image_path: Path to snapshot image
-
-    Returns:
-        Analysis results dictionary
-    """
-    if not gemini_service.is_service_available():
-        return {"error": "Gemini service not available"}
-
-    rider_count = gemini_service.count_motorcycle_riders(image_path)
-    helmet_analysis = gemini_service.analyze_helmet_compliance(image_path)
-
-    return {
-        "image_path": image_path,
-        "rider_count": rider_count,
-        "helmet_analysis": helmet_analysis,
-        "timestamp": os.path.getmtime(image_path)
-        if os.path.exists(image_path)
-        else None,
-    }
 
 
 gemini_service = GeminiService()
