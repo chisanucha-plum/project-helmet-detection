@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users } from "lucide-react"
+import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users, Maximize, Minimize } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { mockDetections } from "@/mocks/realTimeMocks"
@@ -23,6 +23,90 @@ export function RealTimeMonitoring() {
   const [detections] = useState<DetectionResult[]>(mockDetections)
   const [isRecording, setIsRecording] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Handle fullscreen functionality
+  const toggleFullscreen = () => {
+    const videoElement = document.getElementById('mjpeg-stream') as HTMLImageElement
+    const containerElement = document.getElementById('video-container') as HTMLDivElement
+    
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (containerElement.requestFullscreen) {
+        containerElement.requestFullscreen()
+      } else if ((containerElement as any).webkitRequestFullscreen) {
+        (containerElement as any).webkitRequestFullscreen()
+      } else if ((containerElement as any).msRequestFullscreen) {
+        (containerElement as any).msRequestFullscreen()
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen()
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen()
+      }
+    }
+  }
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    document.addEventListener('msfullscreenchange', handleFullscreenChange)
+
+    // Add CSS for fullscreen
+    const style = document.createElement('style')
+    style.textContent = `
+      #video-container:fullscreen {
+        background: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #video-container:-webkit-full-screen {
+        background: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #video-container:-moz-full-screen {
+        background: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    `
+    document.head.appendChild(style)
+
+    // Handle keyboard shortcuts
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFullscreen) {
+        toggleFullscreen()
+      }
+      if (event.key === 'f' || event.key === 'F') {
+        if (mjpegUrl) {
+          toggleFullscreen()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyPress)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange)
+      document.removeEventListener('keydown', handleKeyPress)
+      document.head.removeChild(style)
+    }
+  }, [])
 
   // Update current time every second
   useEffect(() => {
@@ -179,19 +263,70 @@ export function RealTimeMonitoring() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+            <div 
+              id="video-container"
+              className={`aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden group ${
+                isFullscreen ? 'fixed inset-0 z-50 bg-black rounded-none aspect-auto' : ''
+              }`}
+            >
               {mjpegUrl ? (
-                <img id="mjpeg-stream" src={mjpegUrl} alt="Live MJPEG" className="absolute inset-0 w-full h-full object-cover" />
+                <img 
+                  id="mjpeg-stream" 
+                  src={mjpegUrl} 
+                  alt="Live MJPEG" 
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    isFullscreen ? 'object-contain' : 'object-cover'
+                  }`} 
+                />
               ) : (
                 <div className="relative z-10 text-center">
                   <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                   <span className="text-muted-foreground">Live Video Feed</span>
                 </div>
               )}
-              <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs">
+              
+              {/* Recording indicator */}
+              <div className="absolute top-3 left-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs z-20">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 REC
               </div>
+
+              {/* Fullscreen button */}
+              {mjpegUrl && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={toggleFullscreen}
+                  className="absolute top-3 right-3 z-20 transition-opacity"
+                  title={isFullscreen ? "ออกจากเต็มจอ" : "ดูเต็มจอ"}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="h-4 w-4" />
+                  ) : (
+                    <Maximize className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+
+              {/* Fullscreen controls */}
+              {isFullscreen && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+                  <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span>การตรวจสอบสด - กล้องหลัก</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={toggleFullscreen}
+                      className="text-white hover:text-white hover:bg-white/20"
+                    >
+                      <Minimize className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
