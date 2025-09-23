@@ -75,14 +75,14 @@ class GeminiService:
             Do NOT wrap your response in ```json blocks.
             
             Return this exact JSON structure:
-            {"helmet": true/false, "total_person": number, "violations": "text"}
-            
+            {"helmet_status": true/false, "passenger_count": number, "violations": "text"}
+
             Rules:
-            - helmet: true only if ALL motorcycle riders wear helmets
-            - total_person: count only people riding motorcycles
+            - helmet_status_: true only if ALL motorcycle riders wear helmets
+            - passenger_count: count only people riding motorcycles
             - violations: describe violations or "None" if compliant
-            
-            Valid example: {"helmet": false, "total_person": 1, "violations": "Driver not wearing helmet"}"""
+
+            Valid example: {"helmet_status": false, "passenger_count": 1, "violations": "Driver not wearing helmet"}"""
 
             response = self.client.models.generate_content(
                 model="gemini-1.5-flash",
@@ -125,8 +125,8 @@ class GeminiService:
 
             data = json.loads(cleaned_text)
             return AnalysisResult(
-                helmet=data.get("helmet"),
-                total_person=data.get("total_person"),
+                helmet_status=data.get("helmet_status"),
+                passenger_count=data.get("passenger_count"),
                 violations=data.get("violations", "None"),
             )
 
