@@ -55,7 +55,7 @@ def get_latest_snapshot() -> Optional[str]:
 
 
 @router.get(
-    "/helmet-compliance",
+    "/helmet",
     status_code=status.HTTP_200_OK,
     response_model=HelmetComplianceResponse,
 )
@@ -78,11 +78,13 @@ async def analyze_helmet_compliance_endpoint():
         if analysis_result is None:
             # Set default values if analysis failed
             analysis_result = AnalysisResult(
-                helmet=None, total_person=None, violations="Analysis failed"
+                helmet_status=None, passenger_count=None, violations="Analysis failed"
             )
     else:
         analysis_result = AnalysisResult(
-            helmet=None, total_person=None, violations="Gemini service unavailable"
+            helmet_status=None,
+            passenger_count=None,
+            violations="Gemini service unavailable",
         )
 
     # Get file info
@@ -108,7 +110,7 @@ async def analyze_helmet_compliance_endpoint():
 
 
 @router.get(
-    "/snapshots/latest",
+    "/snapshots",
     status_code=status.HTTP_200_OK,
     response_model=LatestSnapshotResponse,
 )

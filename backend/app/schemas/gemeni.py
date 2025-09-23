@@ -6,11 +6,11 @@ from pydantic import BaseModel, Field
 class AnalysisResult(BaseModel):
     """Helmet analysis result schema."""
 
-    helmet: Optional[bool] = Field(
+    helmet_status: Optional[bool] = Field(
         None, description="Overall helmet compliance (true if all persons wear helmets)"
     )
-    total_person: Optional[int] = Field(
-        None, description="Total number of persons detected"
+    passenger_count: Optional[int] = Field(
+        None, description="Total number of passengers detected"
     )
     violations: Optional[str] = Field(
         None, description="Description of violations if any"
