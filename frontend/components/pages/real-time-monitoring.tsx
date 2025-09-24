@@ -314,7 +314,7 @@ export function RealTimeMonitoring() {
                   <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
                     <div className="flex items-center gap-2 text-sm">
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span>การตรวจสอบสด - กล้องหลัก</span>
+                      <span>กล้องหลัก - ตรวจจับผู้ขับขี่</span>
                     </div>
                     <Button
                       size="sm"
@@ -342,16 +342,42 @@ export function RealTimeMonitoring() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-blue-500/20"></div>
-              <div className="relative z-10 text-center">
-                <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <span className="text-muted-foreground">Live Video Feed</span>
-              </div>
-              <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs">
+            <div 
+              id="video-container-2"
+              className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden group"
+            >
+              <img 
+                id="static-image" 
+                src="/f.jpg" 
+                alt="License Plate Detection" 
+                className="absolute inset-0 w-full h-full object-cover" 
+              />
+              
+              {/* Recording indicator */}
+              <div className="absolute top-3 left-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs z-20">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 REC
               </div>
+
+              {/* Fullscreen button */}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const img = document.getElementById('static-image') as HTMLImageElement
+                  if (img.requestFullscreen) {
+                    img.requestFullscreen()
+                  } else if ((img as any).webkitRequestFullscreen) {
+                    (img as any).webkitRequestFullscreen()
+                  } else if ((img as any).msRequestFullscreen) {
+                    (img as any).msRequestFullscreen()
+                  }
+                }}
+                className="absolute top-3 right-3 z-20 transition-opacity"
+                title="ดูเต็มจอ"
+              >
+                <Maximize className="h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

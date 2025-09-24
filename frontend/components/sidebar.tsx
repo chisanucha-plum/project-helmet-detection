@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Settings, Shield, X } from "lucide-react"
+import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
 
@@ -62,45 +62,63 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
   return (
     <div
       className={cn(
-        "bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 ease-in-out h-full",
-        isMobile ? "w-64" : collapsed ? "w-16" : "w-64",
+        "bg-white border-r border-gray-200 shadow-md flex flex-col transition-all duration-300 ease-in-out h-full",
+        isMobile 
+          ? "w-48 sm:w-56" 
+          : collapsed 
+            ? "w-12 sm:w-14" 
+            : "w-48 sm:w-56 lg:w-64",
       )}
     >
       {/* Header */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center justify-between">
-          {(!collapsed || isMobile) && (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-sidebar-accent rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-sidebar-accent-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-semibold text-sidebar-foreground text-sm truncate">ระบบตรวจจับหมวก</h2>
-                <p className="text-xs text-sidebar-foreground/60 truncate">มหาวิทยาลัย</p>
-              </div>
+      <div className={cn(
+        "border-b border-gray-200 transition-all duration-300", 
+        collapsed && !isMobile ? "p-2" : "p-3"
+      )}>
+        {/* Expanded mode */}
+        {(!collapsed || isMobile) && (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
+              <img 
+                src="/icon.png" 
+                alt="Logo" 
+                className="w-5 h-5 sm:w-7 sm:h-7 object-contain"
+              />
             </div>
-          )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggle}
-            className="h-8 w-8 p-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex-shrink-0"
-          >
-            {isMobile ? (
-              <X className="h-4 w-4" />
-            ) : collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold text-sidebar-foreground text-xs sm:text-sm truncate">ระบบตรวจจับหมวก</h2>
+              <p className="text-xs text-sidebar-foreground/60 truncate hidden sm:block">เทคโนโลยีพระจอมเกล้าธนบุรี</p>
+            </div>
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onNavigate}
+                className="h-8 w-8 sm:h-10 sm:w-10 p-0 hover:bg-gray-100 flex-shrink-0"
+              >
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
             )}
-          </Button>
-        </div>
+          </div>
+        )}
+        
+        {/* Collapsed mode - show logo with same size */}
+        {collapsed && !isMobile && (
+          <div className="flex justify-center">
+            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
+              <img 
+                src="/icon.png" 
+                alt="Logo" 
+                className="w-5 h-5 sm:w-7 sm:h-7 object-contain"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-2">
+      <nav className="flex-1 p-2 sm:p-3 overflow-y-auto">
+        <div className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.path
@@ -111,21 +129,28 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
                 variant="ghost"
                 className={cn(
                   // base: make the button a flex container and vertically center contents
-                  "w-full h-auto p-3 flex items-center transition-colors",
+                  "w-full h-auto p-1.5 sm:p-2 flex items-center transition-colors rounded-md",
                   // when collapsed (desktop) center horizontally and remove extra horizontal padding
-                  collapsed && !isMobile ? "justify-center text-center px-0" : "justify-start text-left px-3",
+                  collapsed && !isMobile ? "justify-center text-center px-0 py-1.5" : "justify-start text-left px-1.5 sm:px-2",
                   isActive
                     ? // Enhanced orange color scheme for better visibility
                     "bg-orange-500 text-white hover:bg-orange-600 shadow-sm"
-                    : "text-sidebar-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground",
+                    : "text-sidebar-foreground hover:bg-gray-100 hover:text-gray-900",
                 )}
                 onClick={() => handleNavigation(item.path)}
               >
-                <Icon className={cn("h-5 w-5 flex-shrink-0", collapsed && !isMobile ? "" : "mr-3")} />
+                <Icon className={cn(
+                  "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0", 
+                  collapsed && !isMobile ? "" : "mr-2 sm:mr-3"
+                )} />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span className="font-medium text-sm truncate w-full">{item.label}</span>
-                    {item.description && <span className="text-xs opacity-60 truncate w-full">{item.description}</span>}
+                    <span className="font-medium text-xs sm:text-sm truncate w-full">{item.label}</span>
+                    {item.description && (
+                      <span className="text-xs opacity-60 truncate w-full hidden sm:block">
+                        {item.description}
+                      </span>
+                    )}
                   </div>
                 )}
               </Button>
@@ -136,20 +161,20 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
 
       {/* Status Indicator */}
       {(!collapsed || isMobile) && (
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="bg-sidebar-primary rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
+        <div className="p-3 sm:p-4 border-t border-gray-200">
+          <div className="bg-gray-50 rounded-lg p-2 sm:p-3">
+            <div className="flex items-center gap-2 mb-1 sm:mb-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
-              <span className="text-xs font-medium text-sidebar-primary-foreground truncate">สถานะระบบ</span>
+              <span className="text-xs font-medium text-gray-700 truncate">สถานะระบบ</span>
             </div>
-            <p className="text-xs text-sidebar-primary-foreground/80 truncate">เชื่อมต่อแล้ว</p>
-            <p className="text-xs text-sidebar-primary-foreground/60 truncate">กล้อง: 2/2 ออนไลน์</p>
+            <p className="text-xs text-gray-600 truncate">เชื่อมต่อแล้ว</p>
+            <p className="text-xs text-gray-500 truncate">กล้อง: 2/2 ออนไลน์</p>
           </div>
         </div>
       )}
 
       {/* Bottom Navigation */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-3 sm:p-4 border-t border-gray-200">
         <div className="space-y-1">
           {bottomNavItems.map((item) => {
             const Icon = item.icon
@@ -161,17 +186,17 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
                 variant="ghost"
                 className={cn(
                   // base: flex with vertical centering
-                  "w-full h-auto p-2 flex items-center transition-colors",
+                  "w-full h-auto p-2 flex items-center transition-colors rounded-lg",
                   collapsed && !isMobile ? "justify-center text-center px-0" : "justify-start text-left px-2",
                   isActive
                     ? // Enhanced orange color scheme for bottom navigation
                     "bg-orange-500 text-white hover:bg-orange-600 shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground",
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
                 )}
                 onClick={() => handleNavigation(item.path)}
               >
                 <Icon className={cn("h-4 w-4 flex-shrink-0", collapsed && !isMobile ? "" : "mr-2")} />
-                {(!collapsed || isMobile) && <span className="text-sm truncate">{item.label}</span>}
+                {(!collapsed || isMobile) && <span className="text-xs sm:text-sm truncate">{item.label}</span>}
               </Button>
             )
           })}

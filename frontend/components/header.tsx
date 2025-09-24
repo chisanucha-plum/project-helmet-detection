@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Bell, Menu, Settings, Shield, User } from "lucide-react"
+import { Bell, Menu, Settings, User } from "lucide-react"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -11,56 +11,54 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: HeaderProps) {
   return (
-    <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shadow-sm">
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+    <header className="h-10 sm:h-12 bg-white border border-gray-300 flex items-center justify-between px-3 sm:px-4 rounded-2xl mx-3 mt-3 mb-1">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         <Button
           variant="ghost"
           size="sm"
           onClick={onMenuClick}
-          className="hover:bg-accent hover:text-accent-foreground flex-shrink-0"
+          className="hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 rounded-md"
         >
           <Menu className="h-5 w-5" />
         </Button>
 
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 lg:hidden">
-            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">
-              {isMobile ? "ตรวจจับหมวกกันน็อค" : "ระบบตรวจจับหมวกกันน็อค"}
-            </h1>
-            <p className="text-xs text-muted-foreground hidden sm:block truncate">Real-time Helmet Detection System</p>
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+          <div className="w-4 h-4 sm:w-6 sm:h-6 bg-white rounded-md flex items-center justify-center flex-shrink-0 lg:hidden overflow-hidden shadow-sm border">
+            <img 
+              src="/icon.png" 
+              alt="Logo" 
+              className="w-3 h-3 sm:w-4 sm:h-4 object-contain"
+            />
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <Button
           variant="ghost"
           size="sm"
-          className="relative hover:bg-accent hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9"
+          className="relative hover:bg-gray-100 hover:text-gray-900 h-6 w-6 sm:h-7 sm:w-7 rounded-md p-0"
         >
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-destructive rounded-full flex items-center justify-center">
-            <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-destructive-foreground rounded-full"></span>
+          <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full flex items-center justify-center">
+            <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 bg-white rounded-full"></span>
           </span>
         </Button>
 
         <Button
           variant="ghost"
           size="sm"
-          className="hover:bg-accent hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 hidden sm:flex"
+          className="hover:bg-gray-100 hover:text-gray-900 h-6 w-6 sm:h-7 sm:w-7 hidden sm:flex rounded-md p-0"
         >
-          <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
         </Button>
 
         <Button
           variant="ghost"
           size="sm"
-          className="hover:bg-accent hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9"
+          className="hover:bg-gray-100 hover:text-gray-900 h-6 w-6 sm:h-7 sm:w-7 rounded-md p-0"
         >
-          <User className="h-4 w-4 sm:h-5 sm:w-5" />
+          <User className="h-3 w-3 sm:h-4 sm:w-4" />
         </Button>
       </div>
     </header>

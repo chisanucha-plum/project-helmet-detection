@@ -14,7 +14,7 @@ export const mockDetections: DetectionResultMock[] = [
         id: "1",
         timestamp: "14:35:42",
         camera: "กล้องหลัก - ประตูทางเข้า",
-        licensePlate: "กข-1234",
+        licensePlate: "6กฮ-4422",
         helmetStatus: "not-wearing",
         passengerCount: 2,
         confidence: 95,
