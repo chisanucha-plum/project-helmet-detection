@@ -76,7 +76,8 @@ class DetectionVisualizerConfig:
     motorcycle_validation: MotorcycleValidationConfig
     timestamp_settings: TimestampSettingsConfig
     detection_settings: DetectionSettingsConfig
-    roi_points: list[list[int]]
+    roi_points_video: list[list[int]]
+    roi_points_webcam: list[list[int]]
 
     @staticmethod
     def from_dict(data: dict) -> "DetectionVisualizerConfig":
@@ -91,8 +92,13 @@ class DetectionVisualizerConfig:
             detection_settings=DetectionSettingsConfig.from_dict(
                 data["detection_settings"]
             ),
-            roi_points=data["roi_points"],
+            roi_points_video=data["roi_points_video"],
+            roi_points_webcam=data["roi_points_webcam"],
         )
+
+    def get_roi_points(self, use_webcam: bool) -> list[list[int]]:
+        """เลือก ROI points ตาม input source"""
+        return self.roi_points_webcam if use_webcam else self.roi_points_video
 
 
 @dataclass
@@ -136,7 +142,6 @@ class GemeniConfig:
 
     @staticmethod
     def from_dict(data: dict) -> "GemeniConfig":
-        # Read API key from environment variable if specified
         api_key = data.get("api_key")
         if "api_key_env" in data:
             api_key = os.environ.get(data["api_key_env"], api_key)

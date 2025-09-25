@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -194,24 +195,34 @@ async def generate_frames():
         if not ret:
             break
 
-        results_helmet, results_motorcycle = detects.detect(
+        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+        results_helmet, results_motorcycle = await asyncio.to_thread(
+            detects.detect,
             frame,
             config.model_settings.helmet_conf_threshold,
             config.model_settings.motorcycle_conf_threshold,
         )
 
-        frame, has_no_helmet = visualizer.draw_detections(
+        # เลือก ROI ตาม input source (webcam หรือ video)
+        roi_points = config.detection_visualizer.get_roi_points(
+            config.application_settings.use_webcam
+        )
+
+        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+        frame, has_no_helmet = await asyncio.to_thread(
+            visualizer.draw_detections,
             frame,
             results_helmet,
             results_motorcycle,
-            config.detection_visualizer.roi_points,
+            roi_points,
         )
 
-        # Capture frame when new motorcycle enters ROI
-        capture_frame_on_roi_entry(
+        # Capture frame when new motorcycle enters ROI (non-blocking)
+        await asyncio.to_thread(
+            capture_frame_on_roi_entry,
             frame,
             results_motorcycle,
-            config.detection_visualizer.roi_points,
+            roi_points,
             has_no_helmet,
         )
 

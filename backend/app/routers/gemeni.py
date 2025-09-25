@@ -22,7 +22,6 @@ router = APIRouter(tags=["AI Analysis"])
 
 # Constants
 SNAPSHOT_DIR = "snapshots"
-
 # Thailand timezone (UTC+7)
 THAILAND_TZ = timezone(timedelta(hours=7))
 
@@ -74,7 +73,12 @@ async def analyze_helmet_compliance_endpoint():
 
     # Check if Gemini service is available
     if gemini_service.is_service_available():
-        analysis_result = gemini_service.analyze_helmet_compliance(latest_image)
+        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+        import asyncio
+
+        analysis_result = await asyncio.to_thread(
+            gemini_service.analyze_helmet_compliance, latest_image
+        )
         if analysis_result is None:
             # Set default values if analysis failed
             analysis_result = AnalysisResult(

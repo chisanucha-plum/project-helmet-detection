@@ -41,7 +41,8 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points":[[82,346],[486,342],[543,765],[68,765]]
+    "roi_points_video":[[82,346],[486,342],[543,765],[68,765]],
+    "roi_points_webcam":[[100,200],[500,200],[500,600],[100,600]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
