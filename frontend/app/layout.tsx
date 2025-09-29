@@ -8,9 +8,24 @@ import { AppLayout } from "@/components/app-layout"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "ระบบตรวจจับหมวกกันน็อค - มหาวิทยาลัย",
-  description: "ระบบตรวจจับการสวมหมวกกันน็อคแบบ Real-time สำหรับมหาวิทยาลัย",
+  title: "ระบบตรวจจับการขับขี่สำหรับมหาวิทยาลัย",
+  description: "ระบบตรวจจับการขับขี่สำหรับมหาวิทยาลัย",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/favicon.ico', sizes: '16x16', type: 'image/x-icon' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+    other: [
+      {
+        rel: 'apple-touch-icon-precomposed',
+        url: '/favicon.ico',
+      },
+    ],
+  },
 }
 
 export default function RootLayout({

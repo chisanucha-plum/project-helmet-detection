@@ -71,22 +71,19 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       )}
     >
       {/* Header */}
-      <div className={cn(
-        "border-b border-gray-200 transition-all duration-300", 
-        collapsed && !isMobile ? "p-2" : "p-3"
-      )}>
+      <div className="border-b border-gray-200 transition-all duration-300 p-3">
         {/* Expanded mode */}
         {(!collapsed || isMobile) && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
+            <div className="w-9 h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
               <img 
                 src="/icon.png" 
                 alt="Logo" 
-                className="w-5 h-5 sm:w-7 sm:h-7 object-contain"
+                className="w-7 h-7 object-contain"
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-sidebar-foreground text-xs sm:text-sm truncate">ระบบตรวจจับหมวก</h2>
+              <h2 className="font-semibold text-sidebar-foreground text-xs sm:text-sm truncate">ระบบตรวจจับการขับขี่</h2>
               <p className="text-xs text-sidebar-foreground/60 truncate hidden sm:block">เทคโนโลยีพระจอมเกล้าธนบุรี</p>
             </div>
             {isMobile && (
@@ -105,11 +102,11 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
         {/* Collapsed mode - show logo with same size */}
         {collapsed && !isMobile && (
           <div className="flex justify-center">
-            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
+            <div className="w-9 h-9 bg-white rounded-md flex items-center justify-center overflow-hidden shadow-sm border">
               <img 
                 src="/icon.png" 
                 alt="Logo" 
-                className="w-5 h-5 sm:w-7 sm:h-7 object-contain"
+                className="w-7 h-7 object-contain"
               />
             </div>
           </div>
