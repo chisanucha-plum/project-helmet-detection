@@ -85,7 +85,7 @@ class GeminiService:
             Valid example: {"helmet_status": false, "passenger_count": 1, "violations": "Driver not wearing helmet"}"""
 
             response = self.client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.0-flash-lite-001",
                 contents=[
                     types.Part(
                         inline_data=types.Blob(
