@@ -6,3 +6,6 @@ torch
 torchvision
 google-genai
 python-dotenv
+pydantic
+SQLAlchemy
+websockets

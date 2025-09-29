@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from app.database.database import get_db
+from app.database.history_status import HistoryStatus
 from app.schemas.gemeni import (
     AnalysisResult,
     GeminiServiceInfo,
@@ -12,8 +14,9 @@ from app.schemas.gemeni import (
     SnapshotDirectoryInfo,
 )
 from app.services.gemini import gemini_service
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -58,7 +61,7 @@ def get_latest_snapshot() -> Optional[str]:
     status_code=status.HTTP_200_OK,
     response_model=HelmetComplianceResponse,
 )
-async def analyze_helmet_compliance_endpoint():
+async def analyze_helmet_compliance_endpoint(db: Session = Depends(get_db)):
     """Analyze helmet compliance in the latest snapshot image."""
     latest_image = get_latest_snapshot()
     if not latest_image:
@@ -71,6 +74,23 @@ async def analyze_helmet_compliance_endpoint():
             },
         )
 
+    # ดึง ID จากชื่อไฟล์ snapshot (ชื่อไฟล์เต็มไม่รวม extension)
+    def extract_file_id(filename: str) -> str:
+        """Extract file ID from snapshot filename (full filename without extension)"""
+        try:
+            # ตัวอย่าง: capture_20250925_004942_812_no_helmet_mc_mc_4_6.jpg
+            # เอาเฉพาะชื่อไฟล์ (ไม่รวม path และ extension)
+            basename = os.path.basename(filename)
+            # ตัด .jpg, .jpeg, .png ออก
+            file_id = os.path.splitext(basename)[0]
+            return file_id
+        except Exception:
+            pass
+        # ถ้าดึงไม่ได้ให้ใช้ timestamp ปัจจุบันแทน
+        return f"unknown_{int(datetime.now(THAILAND_TZ).timestamp() * 1000)}"
+
+    file_id = extract_file_id(latest_image)
+
     # Check if Gemini service is available
     if gemini_service.is_service_available():
         # ใช้ asyncio.to_thread เพื่อไม่ block event loop
@@ -82,10 +102,25 @@ async def analyze_helmet_compliance_endpoint():
         if analysis_result is None:
             # Set default values if analysis failed
             analysis_result = AnalysisResult(
-                helmet_status=None, passenger_count=None, violations="Analysis failed"
+                id=file_id,
+                helmet_status=None,
+                passenger_count=None,
+                violations="Analysis failed",
             )
+        else:
+            # Update id with file_id from snapshot filename
+            analysis_result.id = file_id
+
+        # Check if the result indicates quota exhaustion
+        if (
+            analysis_result
+            and analysis_result.violations
+            and "quota exhausted" in analysis_result.violations
+        ):
+            logger.warning("Gemini API quota exhausted - analysis skipped")
     else:
         analysis_result = AnalysisResult(
+            id=file_id,
             helmet_status=None,
             passenger_count=None,
             violations="Gemini service unavailable",
@@ -109,6 +144,42 @@ async def analyze_helmet_compliance_endpoint():
         image_info=image_info,
         analysis_timestamp=get_thailand_datetime().strftime("%Y-%m-%d %H:%M:%S"),
     )
+
+    # บันทึกข้อมูลลงฐานข้อมูล
+    try:
+        # Check if record already exists
+        existing_record = (
+            db.query(HistoryStatus)
+            .filter(HistoryStatus.id == analysis_result.id)
+            .first()
+        )
+
+        if existing_record:
+            # Update existing record
+            existing_record.helmet_status = analysis_result.helmet_status
+            existing_record.passenger_count = analysis_result.passenger_count
+            existing_record.violations = analysis_result.violations
+            existing_record.timestamp = response_data.analysis_timestamp
+            logger.info(
+                f"Updated existing history record with ID: {analysis_result.id}"
+            )
+        else:
+            # Create new record
+            history_record = HistoryStatus(
+                id=analysis_result.id,
+                helmet_status=analysis_result.helmet_status,
+                passenger_count=analysis_result.passenger_count,
+                violations=analysis_result.violations,
+                timestamp=response_data.analysis_timestamp,
+            )
+            db.add(history_record)
+            logger.info(f"Created new history record with ID: {analysis_result.id}")
+
+        db.commit()
+
+    except Exception as e:
+        logger.warning(f"Failed to save history (continuing without DB): {e}")
+        db.rollback()
 
     return response_data
 

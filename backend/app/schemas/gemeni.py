@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field
 class AnalysisResult(BaseModel):
     """Helmet analysis result schema."""
 
+    id: Optional[str] = Field(
+        None, description="Unique identifier for the analysis record (filename-based)"
+    )
     helmet_status: Optional[bool] = Field(
         None, description="Overall helmet compliance (true if all persons wear helmets)"
     )

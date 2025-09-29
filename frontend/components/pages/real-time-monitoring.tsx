@@ -15,7 +15,7 @@ interface DetectionResult {
   licensePlate: string
   helmetStatus: "wearing" | "not-wearing"
   passengerCount: number
-  confidence: number
+  // confidence: number
   imageUrl?: string
 }
 
@@ -191,35 +191,7 @@ export function RealTimeMonitoring() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">การกระทำผิดวันนี้</p>
-                <p className="text-2xl font-bold text-foreground">{todayViolations}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">อัตราการปฏิบัติตาม</p>
-                <p className="text-2xl font-bold text-foreground">{complianceRate}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
+          <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -244,6 +216,34 @@ export function RealTimeMonitoring() {
                 <p className="text-2xl font-bold text-foreground">
                   {detections.filter((d) => d.passengerCount > 2).length}
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">การกระทำผิดวันนี้</p>
+                <p className="text-2xl font-bold text-foreground">{todayViolations}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">อัตราการปฏิบัติตาม</p>
+                <p className="text-2xl font-bold text-foreground">{complianceRate}%</p>
               </div>
             </div>
           </CardContent>
@@ -432,9 +432,9 @@ export function RealTimeMonitoring() {
                     )}
                   </div>
 
-                  <Badge variant="outline" className="text-xs">
+                  {/* <Badge variant="outline" className="text-xs">
                     {detection.confidence}% แม่นยำ
-                  </Badge>
+                  </Badge> */}
 
                   <span className="text-xs text-muted-foreground">{detection.camera}</span>
                 </div>

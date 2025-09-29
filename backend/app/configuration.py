@@ -136,6 +136,31 @@ class ApplicationSettingsConfig:
 
 
 @dataclass
+class PostgresConfig:
+    host: str
+    port: int
+    user: str
+    password: str
+    database: str
+
+    @staticmethod
+    def from_env() -> "PostgresConfig":
+        host = os.environ.get("DATABASE_HOST", "localhost")
+        port = int(os.environ.get("DATABASE_PORT", "5432"))
+        user = os.environ.get("DATABASE_USER", "postgres")
+        password = os.environ.get("DATABASE_PASSWORD", "password")
+        database = os.environ.get("DATABASE_NAME", "helmet_detection")
+
+        return PostgresConfig(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database,
+        )
+
+
+@dataclass
 class GemeniConfig:
     model: str
     api_key: str
@@ -158,6 +183,7 @@ class Configuration:
     model_settings: ModelSettingsConfig
     application_settings: ApplicationSettingsConfig
     gemeni: GemeniConfig
+    postgres: PostgresConfig
 
     @staticmethod
     def from_dict(data: dict) -> "Configuration":
@@ -170,6 +196,7 @@ class Configuration:
                 data["application_settings"]
             ),
             gemeni=GemeniConfig.from_dict(data["gemeni"]),
+            postgres=PostgresConfig.from_env(),  # อ่านจาก .env เท่านั้น
         )
 
     @staticmethod

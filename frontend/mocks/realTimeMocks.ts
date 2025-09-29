@@ -5,36 +5,36 @@ export interface DetectionResultMock {
     licensePlate: string
     helmetStatus: "wearing" | "not-wearing"
     passengerCount: number
-    confidence: number
+    // confidence: number
     imageUrl?: string
 }
 
 export const mockDetections: DetectionResultMock[] = [
     {
         id: "1",
-        timestamp: "14:35:42",
-        camera: "กล้องหลัก - ประตูทางเข้า",
+        timestamp: "2025-09-26 16:23:06",
+        camera: "กล้องหลัก - ตรวจจับผู้ขับขี่",
         licensePlate: "6กฮ-4422",
         helmetStatus: "not-wearing",
         passengerCount: 2,
-        confidence: 95,
+        // confidence: 95,
     },
     {
         id: "2",
-        timestamp: "14:33:15",
-        camera: "กล้องรอง - ลานจอดรถ",
+        timestamp: "2025-09-26 16:23:06",
+        camera: "กล้องหลัก - ตรวจจับผู้ขับขี่",
         licensePlate: "คง-5678",
         helmetStatus: "wearing",
         passengerCount: 1,
-        confidence: 98,
+        // confidence: 98,
     },
     {
         id: "3",
-        timestamp: "14:30:28",
-        camera: "กล้องหลัก - ประตูทางเข้า",
+        timestamp: "2025-09-26 16:23:06",
+        camera: "กล้องหลัก - ตรวจจับผู้ขับขี่",
         licensePlate: "นม-9012",
         helmetStatus: "not-wearing",
         passengerCount: 3,
-        confidence: 92,
+        // confidence: 92,
     },
 ]
