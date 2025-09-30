@@ -42,7 +42,7 @@
       "thickness": 2
     },
     "roi_points_video":[[82,346],[486,342],[543,765],[68,765]],
-    "roi_points_webcam":[[160,120],[480,120],[480,360],[160,360]]
+    "roi_points_webcam":[[200,120],[480,120],[480,360],[160,360]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
@@ -54,7 +54,7 @@
   "application_settings": {
     "video_path": "..\\src\\case\\case_1.mp4",
     "use_webcam": true,
-    "webcam_id": 0
+    "webcam_id": 1
   },
   "gemeni": {
     "model": "gemini-1.5-flash",

@@ -11,7 +11,6 @@ class DetectionVisualizer:
 
     def __init__(self):
         config = Configuration.get_config()
-        # Define colors in BGR (Blue, Green, Red) format
         self.colors = {
             "motorcycle": config.detection_visualizer.colors.motorcycle,
             "helmet_on": config.detection_visualizer.colors.helmet_on,
@@ -66,21 +65,6 @@ class DetectionVisualizer:
         # ใช้ ratio ที่เหมาะสำหรับมอเตอร์ไซค์: 0.3 <= ratio <= 2.0
         ratio = height / width
         return 0.3 <= ratio <= 2.0  # More flexible ratio for motorcycles
-
-    def draw_detections(self, frame, results_helmet, results_motorcycle, roi_points):
-        """
-        Draws detection results (motorcycles, helmets) and ROI onto the frame.
-        """
-        self._draw_roi(frame, roi_points)
-        self._draw_motorcycles(frame, results_motorcycle, roi_points)
-
-        found_person_no_helmet_in_roi = self._draw_helmets(
-            frame, results_helmet, roi_points
-        )
-        # self._draw_timestamp(frame)
-
-        # Return the drawn frame and the status of finding a person without a helmet in ROI
-        return frame, found_person_no_helmet_in_roi
 
     def _draw_roi(self, frame, roi_points):
         """Draw the ROI polygon on the frame if roi_points exist."""
@@ -179,15 +163,14 @@ class DetectionVisualizer:
 
         return found_person_no_helmet_in_roi
 
-    # def _draw_timestamp(self, frame):
-    #     """Draw the current timestamp on the frame."""
-    #     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     cv2.putText(
-    #         frame,
-    #         timestamp,
-    #         (10, 30),
-    #         self.timestamp_font,
-    #         self.timestamp_scale,
-    #         self.timestamp_color,
-    #         self.timestamp_thickness,
-    #     )
+    def draw_detections(self, frame, results_helmet, results_motorcycle, roi_points):
+        """
+        Draws detection results (motorcycles, helmets) and ROI onto the frame.
+        """
+        self._draw_roi(frame, roi_points)
+        self._draw_motorcycles(frame, results_motorcycle, roi_points)
+
+        found_person_no_helmet_in_roi = self._draw_helmets(
+            frame, results_helmet, roi_points
+        )
+        return frame, found_person_no_helmet_in_roi
