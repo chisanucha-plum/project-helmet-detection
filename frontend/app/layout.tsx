@@ -35,6 +35,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
+      <head>
+        {/* Load react-scan in development only so it doesn't run in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            // load the global auto-initializing build from unpkg
+            crossOrigin="anonymous"
+            src="//unpkg.com/react-scan/dist/auto.global.js"
+          />
+        )}
+      </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <AppLayout>
           <Suspense fallback={null}>{children}</Suspense>

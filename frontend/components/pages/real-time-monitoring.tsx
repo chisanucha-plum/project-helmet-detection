@@ -4,9 +4,22 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users, Maximize, Minimize } from "lucide-react"
-import { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 
 import { mockDetections } from "@/mocks/realTimeMocks"
+
+// Small clock component that updates every second. Kept isolated so the parent
+// RealTimeMonitoring component does not re-render every tick.
+function NowClock() {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  return <>{now.toLocaleTimeString('th-TH')}</>
+}
 
 interface DetectionResult {
   id: string
@@ -22,16 +35,15 @@ interface DetectionResult {
 export function RealTimeMonitoring() {
   const [detections] = useState<DetectionResult[]>(mockDetections)
   const [isRecording, setIsRecording] = useState(true)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Handle fullscreen functionality
-  const toggleFullscreen = () => {
-    const videoElement = document.getElementById('mjpeg-stream') as HTMLImageElement
-    const containerElement = document.getElementById('video-container') as HTMLDivElement
-    
-    if (!isFullscreen) {
-      // Enter fullscreen
+  // Make toggleFullscreen stable so it doesn't change every render
+  const toggleFullscreen = useCallback(() => {
+    const containerElement = document.getElementById('video-container') as HTMLDivElement | null
+    if (!containerElement) return
+
+    if (!document.fullscreenElement) {
       if (containerElement.requestFullscreen) {
         containerElement.requestFullscreen()
       } else if ((containerElement as any).webkitRequestFullscreen) {
@@ -40,7 +52,6 @@ export function RealTimeMonitoring() {
         (containerElement as any).msRequestFullscreen()
       }
     } else {
-      // Exit fullscreen
       if (document.exitFullscreen) {
         document.exitFullscreen()
       } else if ((document as any).webkitExitFullscreen) {
@@ -49,9 +60,11 @@ export function RealTimeMonitoring() {
         (document as any).msExitFullscreen()
       }
     }
-  }
+  }, [])
 
-  // Listen for fullscreen changes
+  // Listen for fullscreen changes and keyboard shortcuts. We avoid closing over
+  // changing state (like isFullscreen or mjpegUrl) by querying the DOM/document
+  // directly when handling keys.
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
@@ -85,14 +98,25 @@ export function RealTimeMonitoring() {
     `
     document.head.appendChild(style)
 
-    // Handle keyboard shortcuts
+    // Handle keyboard shortcuts without reading stale closures
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isFullscreen) {
-        toggleFullscreen()
+      if (event.key === 'Escape') {
+        if (document.fullscreenElement) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen()
+          } else if ((document as any).webkitExitFullscreen) {
+            (document as any).webkitExitFullscreen()
+          }
+        }
       }
-      if (event.key === 'f' || event.key === 'F') {
-        if (mjpegUrl) {
-          toggleFullscreen()
+      if (event.key.toLowerCase() === 'f') {
+        // If the MJPEG element exists, toggle fullscreen on its container
+        const mjpegEl = document.getElementById('mjpeg-stream')
+        const container = document.getElementById('video-container')
+        if (mjpegEl && container && !document.fullscreenElement) {
+          if ((container as any).requestFullscreen) {
+            (container as any).requestFullscreen()
+          }
         }
       }
     }
@@ -108,47 +132,13 @@ export function RealTimeMonitoring() {
     }
   }, [])
 
-  // Update current time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
+  // NOTE: we move the per-second clock into a small component below so the
+  // whole page doesn't re-render every second.
 
   // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
   const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
-    // Old fetch/reader approach (commented out):
-    // const res = await fetch(url, { signal: abortController.signal })
-    // const reader = res.body.getReader()
-    // while (true) {
-    //   const { done, value } = await reader.read()
-    //   if (done) break
-    //   const chunk = decoder.decode(value, { stream: true })
-    //   buffer += chunk
-    //   // Parse multipart boundary and extract JSON payload
-    //   // if (buf.trim()) {
-    //   //   try {
-    //   //     const payload = JSON.parse(buf.trim())
-    //   //     const mapped: DetectionResult = {
-    //   //       id: String(payload.id ?? Date.now()),
-    //   //       timestamp: payload.timestamp ?? new Date().toLocaleTimeString('th-TH'),
-    //   //       camera: payload.camera ?? 'กล้องไม่ทราบ',
-    //   //       licensePlate: payload.license_plate ?? payload.licensePlate ?? 'ไม่ทราบ',
-    //   //       helmetStatus: payload.helmet_status === false ? 'not-wearing' : 'wearing',
-    //   //       passengerCount: payload.person_count ?? payload.passengerCount ?? 1,
-    //   //       confidence: payload.confidence ?? 0,
-    //   //       imageUrl: payload.image_url ?? payload.imageUrl,
-    //   //     }
-    //   //     setDetections(prev => [mapped, ...prev.slice(0, 10)])
-    //   //   } catch (e) { console.error('Parse error:', e) }
-    //   // }
-    //   // const detection = JSON.parse(payloadJson)
-    //   // setDetections(prev => [detection, ...prev.slice(0, 99)])
-    // }
     
     // New simple approach: use <img> with MJPEG URL
     const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
@@ -168,7 +158,7 @@ export function RealTimeMonitoring() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">การตรวจสอบแบบ Real-time</h2>
-          <p className="text-muted-foreground">อัปเดตล่าสุด: {currentTime.toLocaleTimeString("th-TH")}</p>
+          <p className="text-muted-foreground">อัปเดตล่าสุด: <NowClock /></p>
         </div>
 
         <div className="flex items-center gap-4">
