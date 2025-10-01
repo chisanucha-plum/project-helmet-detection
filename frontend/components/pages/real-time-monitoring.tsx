@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users, Maximize, Minimize } from "lucide-react"
 import React, { useEffect, useState, useCallback } from "react"
 
-import { mockDetections } from "@/mocks/realTimeMocks"
+// We fetch real detection history from the backend instead of using mocks
 
 // Small clock component that updates every second. Kept isolated so the parent
 // RealTimeMonitoring component does not re-render every tick.
@@ -33,7 +33,7 @@ interface DetectionResult {
 }
 
 export function RealTimeMonitoring() {
-  const [detections] = useState<DetectionResult[]>(mockDetections)
+  const [detections, setDetections] = useState<DetectionResult[]>([])
   const [isRecording, setIsRecording] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -137,6 +137,46 @@ export function RealTimeMonitoring() {
 
   // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
   const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
+
+  // Poll backend for history records and map them to DetectionResult
+  useEffect(() => {
+    let mounted = true
+    const controller = new AbortController()
+    const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+    const mapHistoryToDetection = (h: any): DetectionResult => ({
+      id: h.id ?? `id_${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: h.timestamp ?? new Date().toLocaleString('th-TH'),
+      camera: 'กล้องหลัก',
+      licensePlate: '',
+      helmetStatus: h.helmet_status === true ? 'wearing' : 'not-wearing',
+      passengerCount: typeof h.passenger_count === 'number' ? h.passenger_count : 1,
+      imageUrl: undefined,
+    })
+
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`${base}/helmet/history?limit=20`, { signal: controller.signal })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        if (!mounted) return
+        const items = Array.isArray(data) ? data.map(mapHistoryToDetection) : []
+        setDetections(items)
+      } catch (e) {
+        // ignore abort errors
+        if ((e as any).name === 'AbortError') return
+        console.warn('Failed to fetch history:', e)
+      }
+    }
+
+    fetchHistory()
+    const t = setInterval(fetchHistory, 5000)
+    return () => {
+      mounted = false
+      controller.abort()
+      clearInterval(t)
+    }
+  }, [])
 
   useEffect(() => {
     

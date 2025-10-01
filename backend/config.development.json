@@ -41,8 +41,8 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points_video":[[82,346],[486,342],[543,765],[68,765]],
-    "roi_points_webcam":[[200,120],[480,120],[480,360],[160,360]]
+    "roi_points_video":[[318,144],[319,516],[806,513],[787,142]],
+  "roi_points_webcam":[[90,120],[570,120],[570,360],[90,360]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
@@ -52,8 +52,8 @@
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "..\\src\\case\\case_1.mp4",
-    "use_webcam": true,
+    "video_path": "..\\src\\case\\case_08.mp4",
+    "use_webcam": false,
     "webcam_id": 1
   },
   "gemeni": {

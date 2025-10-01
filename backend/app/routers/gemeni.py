@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from app.database.analysis_job import AnalysisJob
 from app.database.database import get_db
 from app.database.history_status import HistoryStatus
 from app.schemas.gemeni import (
@@ -83,6 +84,8 @@ async def analyze_helmet_compliance_endpoint(db: Session = Depends(get_db)):
             basename = os.path.basename(filename)
             # ตัด .jpg, .jpeg, .png ออก
             file_id = os.path.splitext(basename)[0]
+            # Normalize: if filename is like _20251001_101711_166_ strip surrounding underscores
+            file_id = file_id.strip("_")
             return file_id
         except Exception:
             pass
@@ -91,40 +94,31 @@ async def analyze_helmet_compliance_endpoint(db: Session = Depends(get_db)):
 
     file_id = extract_file_id(latest_image)
 
-    # Check if Gemini service is available
-    if gemini_service.is_service_available():
-        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-        import asyncio
-
-        analysis_result = await asyncio.to_thread(
-            gemini_service.analyze_helmet_compliance, latest_image
+    # Enqueue analysis job (worker will call Gemini/service in background)
+    try:
+        job = AnalysisJob(
+            image_path=latest_image,
+            status="queued",
+            created_at=get_thailand_datetime().strftime("%Y-%m-%d %H:%M:%S"),
         )
-        if analysis_result is None:
-            # Set default values if analysis failed
-            analysis_result = AnalysisResult(
-                id=file_id,
-                helmet_status=None,
-                passenger_count=None,
-                violations="Analysis failed",
-            )
-        else:
-            # Update id with file_id from snapshot filename
-            analysis_result.id = file_id
-
-        # Check if the result indicates quota exhaustion
-        if (
-            analysis_result
-            and analysis_result.violations
-            and "quota exhausted" in analysis_result.violations
-        ):
-            logger.warning("Gemini API quota exhausted - analysis skipped")
-    else:
-        analysis_result = AnalysisResult(
-            id=file_id,
-            helmet_status=None,
-            passenger_count=None,
-            violations="Gemini service unavailable",
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except Exception as e:
+        logger.warning(f"Failed to enqueue analysis job: {e}")
+        db.rollback()
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Failed to enqueue analysis job"},
         )
+
+    # Return queued response with placeholder analysis result (worker will update DB)
+    analysis_result = AnalysisResult(
+        id=file_id,
+        helmet_status=None,
+        passenger_count=None,
+        violations="queued",
+    )
 
     # Get file info
     file_stats = os.stat(latest_image)

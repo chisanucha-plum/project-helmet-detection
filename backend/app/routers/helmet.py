@@ -3,15 +3,22 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List
 
 import cv2
 import numpy as np
 from app.configuration import Configuration
+from app.database.analysis_job import AnalysisJob
+from app.database.database import SessionLocal, get_db
+from app.schemas.helmet import (
+    HistoryStatusResponse,
+)
 from app.services.detect import ObjectDetect
+from app.services.helmet_service import HelmetService
 from app.services.visualizer import DetectionVisualizer
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -22,10 +29,18 @@ router = APIRouter(tags=["Helmet Detection"])
 # Constants
 VIDEO_SOURCE_ERROR = "Cannot open video source"
 SNAPSHOT_DIR = "snapshots"
-COOLDOWN_SECONDS = 8.0  # Prevent duplicate captures within 8 seconds
+COOLDOWN_SECONDS = 20.0  # Prevent duplicate captures within 20 seconds
 
 # Global object tracking
 tracked_objects: Dict[str, float] = {}  # object_id -> last_seen_time
+# Simple in-memory tracker to assign stable IDs across frames
+# track_id -> (center_x, center_y, last_seen_time)
+recent_tracks: Dict[str, tuple] = {}
+# Next numeric id for new tracks
+next_track_id = 1
+# Matching params
+TRACK_MATCH_DISTANCE = 75.0  # pixels
+TRACK_MAX_AGE = 5.0  # seconds before we consider a track stale
 
 
 def is_motorcycle_in_center_roi(bbox, roi_points) -> bool:
@@ -95,6 +110,54 @@ def calculate_motorcycle_id(bbox) -> str:
     grid_y = center_y // 85
 
     return f"mc_{grid_x}_{grid_y}"
+
+
+def get_track_id_from_bbox(bbox) -> str:
+    """
+    Assign or retrieve a stable track id for a bounding box using nearest-neighbor
+    matching against recent tracks.
+
+    Returns a string track id like 'trk_1'.
+    """
+    global next_track_id
+    # compute centroid
+    x1, y1, x2, y2 = bbox
+    center_x = int((x1 + x2) / 2)
+    center_y = int((y1 + y2) / 2)
+    now_ts = time.time()
+
+    # remove stale tracks
+    stale = [
+        tid for tid, (_, _, t) in recent_tracks.items() if (now_ts - t) > TRACK_MAX_AGE
+    ]
+    for tid in stale:
+        recent_tracks.pop(tid, None)
+
+    # find nearest track
+    best_id = None
+    best_dist = None
+    for tid, (tx, ty, t) in recent_tracks.items():
+        dx = tx - center_x
+        dy = ty - center_y
+        dist = (dx * dx + dy * dy) ** 0.5
+        if best_dist is None or dist < best_dist:
+            best_dist = dist
+            best_id = tid
+
+    if (
+        best_id is not None
+        and best_dist is not None
+        and best_dist <= TRACK_MATCH_DISTANCE
+    ):
+        # update track centroid/time
+        recent_tracks[best_id] = (center_x, center_y, now_ts)
+        return best_id
+
+    # create new track
+    tid = f"trk_{next_track_id}"
+    next_track_id += 1
+    recent_tracks[tid] = (center_x, center_y, now_ts)
+    return tid
 
 
 def should_capture_object(object_id: str) -> bool:
@@ -181,14 +244,16 @@ def capture_frame_on_roi_entry(
 
         # Check if motorcycle is in CENTER of ROI (not just inside ROI)
         if is_motorcycle_in_center_roi(bbox_np, roi_points):
-            # Generate motorcycle ID based on position only
-            motorcycle_id = calculate_motorcycle_id(bbox_np)
+            # Generate stable track ID (nearest-neighbor tracker) instead of grid ID
+            motorcycle_id = get_track_id_from_bbox(bbox_np)
 
             # Check cooldown to prevent duplicate captures
             if should_capture_object(motorcycle_id):
+                # Timestamp formatted like 20251001_101711_166 (milliseconds precision)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-                helmet_status = "no_helmet" if has_no_helmet else "helmet"
-                filename = f"capture_{timestamp}_{helmet_status}_mc_{motorcycle_id}.jpg"
+                # Save filename with only the timestamp wrapped by underscores
+                # Example: _20251001_101711_166_.jpg
+                filename = f"_{timestamp}_.jpg"
                 filepath = os.path.join(SNAPSHOT_DIR, filename)
 
                 # Crop to ROI area to save storage space
@@ -197,6 +262,32 @@ def capture_frame_on_roi_entry(
 
                 # Save cropped frame
                 cv2.imwrite(filepath, cropped_frame)
+                # TODO: Add frame to video queue for processing
+                # Enqueue analysis job in DB so worker will pick it up
+                try:
+                    db = SessionLocal()
+                    job = AnalysisJob(
+                        image_path=filepath,
+                        status="queued",
+                        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                    db.add(job)
+                    db.commit()
+                    db.refresh(job)
+                    logger.info(f"Enqueued analysis job id={job.id} for {filepath}")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to enqueue analysis job for {filepath}: {e}"
+                    )
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
                 return True
 
     return False
@@ -263,93 +354,99 @@ async def generate_frames():
     cap.release()
 
 
-async def generate_websocket_frames(websocket: WebSocket):
-    """Generate frames for WebSocket streaming (same as REST API)"""
-    config = Configuration.get_config()
-    detects = ObjectDetect(
-        config.model_settings.helmet_model_path,
-        config.model_settings.motorcycle_model_path,
-    )
-    visualizer = DetectionVisualizer()
-    cap = cv2.VideoCapture(
-        config.application_settings.webcam_id
-        if config.application_settings.use_webcam
-        else config.application_settings.video_path
-    )
-
-    if not cap.isOpened():
-        logger.error(VIDEO_SOURCE_ERROR)
-        return
-
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-            results_helmet, results_motorcycle = await asyncio.to_thread(
-                detects.detect,
-                frame,
-                config.model_settings.helmet_conf_threshold,
-                config.model_settings.motorcycle_conf_threshold,
-            )
-
-            # เลือก ROI ตาม input source (webcam หรือ video)
-            roi_points = config.detection_visualizer.get_roi_points(
-                config.application_settings.use_webcam
-            )
-
-            # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-            frame, has_no_helmet = await asyncio.to_thread(
-                visualizer.draw_detections,
-                frame,
-                results_helmet,
-                results_motorcycle,
-                roi_points,
-            )
-
-            # Capture frame when new motorcycle enters ROI (non-blocking)
-            await asyncio.to_thread(
-                capture_frame_on_roi_entry,
-                frame,
-                results_motorcycle,
-                roi_points,
-                has_no_helmet,
-            )
-
-            # Encode frame as JPEG
-            ret, buffer = cv2.imencode(".jpg", frame)
-            if ret:
-                # Send frame as binary data only (same as REST API)
-                await websocket.send_bytes(buffer.tobytes())
-
-    except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-    finally:
-        cap.release()
-
-
 @router.get("/detect", status_code=status.HTTP_200_OK)
 async def helmet_detection_stream():
-    """
-    REST API: Helmet detection streaming endpoint (Legacy support)
-    """
     return StreamingResponse(
         generate_frames(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
 
 
-@router.websocket("/ws/detect")
-async def websocket_helmet_detection(websocket: WebSocket):
-    """
-    WebSocket: Helmet detection streaming (same as REST API)
-    """
-    await websocket.accept()
-    logger.info("WebSocket client connected for helmet detection")
+@router.get("/history", response_model=List[HistoryStatusResponse])
+async def get_history_records(
+    limit: int = Query(default=50, ge=1, le=500), db: Session = Depends(get_db)
+):
+    """Get history status records with violation details"""
+    history = HelmetService.get_history_with_details(db=db, limit=limit)
+    return history
 
-    # Start frame generation and streaming (no initial messages)
-    await generate_websocket_frames(websocket)
+
+# async def generate_websocket_frames(websocket: WebSocket):
+#     """Generate frames for WebSocket streaming (same as REST API)"""
+#     config = Configuration.get_config()
+#     detects = ObjectDetect(
+#         config.model_settings.helmet_model_path,
+#         config.model_settings.motorcycle_model_path,
+#     )
+#     visualizer = DetectionVisualizer()
+#     cap = cv2.VideoCapture(
+#         config.application_settings.webcam_id
+#         if config.application_settings.use_webcam
+#         else config.application_settings.video_path
+#     )
+
+#     if not cap.isOpened():
+#         logger.error(VIDEO_SOURCE_ERROR)
+#         return
+
+#     try:
+#         while True:
+#             ret, frame = cap.read()
+#             if not ret:
+#                 break
+
+#             # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+#             results_helmet, results_motorcycle = await asyncio.to_thread(
+#                 detects.detect,
+#                 frame,
+#                 config.model_settings.helmet_conf_threshold,
+#                 config.model_settings.motorcycle_conf_threshold,
+#             )
+
+#             # เลือก ROI ตาม input source (webcam หรือ video)
+#             roi_points = config.detection_visualizer.get_roi_points(
+#                 config.application_settings.use_webcam
+#             )
+
+#             # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+#             frame, has_no_helmet = await asyncio.to_thread(
+#                 visualizer.draw_detections,
+#                 frame,
+#                 results_helmet,
+#                 results_motorcycle,
+#                 roi_points,
+#             )
+
+#             # Capture frame when new motorcycle enters ROI (non-blocking)
+#             await asyncio.to_thread(
+#                 capture_frame_on_roi_entry,
+#                 frame,
+#                 results_motorcycle,
+#                 roi_points,
+#                 has_no_helmet,
+#             )
+
+#             # Encode frame as JPEG
+#             ret, buffer = cv2.imencode(".jpg", frame)
+#             if ret:
+#                 # Send frame as binary data only (same as REST API)
+#                 await websocket.send_bytes(buffer.tobytes())
+
+#     except WebSocketDisconnect:
+#         logger.info("WebSocket client disconnected")
+#     except Exception as e:
+#         logger.error(f"WebSocket error: {e}")
+#     finally:
+# cap.release()
+
+
+# @router.websocket("/ws/detect")
+# async def websocket_helmet_detection(websocket: WebSocket):
+#     """
+#     WebSocket: Helmet detection streaming (same as REST API)
+#     """
+#     await websocket.accept()
+#     logger.info("WebSocket client connected for helmet detection")
+
+#     # Start frame generation and streaming (no initial messages)
+#     await generate_websocket_frames(websocket)
