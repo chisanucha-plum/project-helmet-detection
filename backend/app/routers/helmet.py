@@ -260,34 +260,28 @@ def capture_frame_on_roi_entry(
                 # เฉพาะพื้นที่ ROI เพื่อประหยัดเนื้อที่
                 cropped_frame = crop_roi_area(frame, roi_points)
 
-                # Save cropped frame
+                # Save cropped frame (always try to save snapshot file first)
                 cv2.imwrite(filepath, cropped_frame)
-                # TODO: Add frame to video queue for processing
-                # Enqueue analysis job in DB so worker will pick it up
+
+                # Enqueue analysis job in DB so worker will pick it up.
+                # Use context-managed session and clearer logging on failure.
                 try:
-                    db = SessionLocal()
-                    job = AnalysisJob(
-                        image_path=filepath,
-                        status="queued",
-                        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    )
-                    db.add(job)
-                    db.commit()
-                    db.refresh(job)
-                    logger.info(f"Enqueued analysis job id={job.id} for {filepath}")
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to enqueue analysis job for {filepath}: {e}"
-                    )
-                    try:
-                        db.rollback()
-                    except Exception:
-                        pass
-                finally:
-                    try:
-                        db.close()
-                    except Exception:
-                        pass
+                    with SessionLocal() as db:
+                        job = AnalysisJob(
+                            image_path=filepath,
+                            status="queued",
+                            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        )
+                        db.add(job)
+                        db.commit()
+                        db.refresh(job)
+                        logger.info(f"Enqueued analysis job id={job.id} for {filepath}")
+                except Exception:
+                    # Log full exception (stack trace) so debugging is easier.
+                    logger.exception(f"Failed to enqueue analysis job for {filepath}")
+                    # Note: we deliberately do NOT re-raise here because
+                    # snapshot saving succeeded and we don't want a DB
+                    # enqueue failure to interrupt the capture loop.
                 return True
 
     return False
@@ -369,84 +363,3 @@ async def get_history_records(
     """Get history status records with violation details"""
     history = HelmetService.get_history_with_details(db=db, limit=limit)
     return history
-
-
-# async def generate_websocket_frames(websocket: WebSocket):
-#     """Generate frames for WebSocket streaming (same as REST API)"""
-#     config = Configuration.get_config()
-#     detects = ObjectDetect(
-#         config.model_settings.helmet_model_path,
-#         config.model_settings.motorcycle_model_path,
-#     )
-#     visualizer = DetectionVisualizer()
-#     cap = cv2.VideoCapture(
-#         config.application_settings.webcam_id
-#         if config.application_settings.use_webcam
-#         else config.application_settings.video_path
-#     )
-
-#     if not cap.isOpened():
-#         logger.error(VIDEO_SOURCE_ERROR)
-#         return
-
-#     try:
-#         while True:
-#             ret, frame = cap.read()
-#             if not ret:
-#                 break
-
-#             # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-#             results_helmet, results_motorcycle = await asyncio.to_thread(
-#                 detects.detect,
-#                 frame,
-#                 config.model_settings.helmet_conf_threshold,
-#                 config.model_settings.motorcycle_conf_threshold,
-#             )
-
-#             # เลือก ROI ตาม input source (webcam หรือ video)
-#             roi_points = config.detection_visualizer.get_roi_points(
-#                 config.application_settings.use_webcam
-#             )
-
-#             # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-#             frame, has_no_helmet = await asyncio.to_thread(
-#                 visualizer.draw_detections,
-#                 frame,
-#                 results_helmet,
-#                 results_motorcycle,
-#                 roi_points,
-#             )
-
-#             # Capture frame when new motorcycle enters ROI (non-blocking)
-#             await asyncio.to_thread(
-#                 capture_frame_on_roi_entry,
-#                 frame,
-#                 results_motorcycle,
-#                 roi_points,
-#                 has_no_helmet,
-#             )
-
-#             # Encode frame as JPEG
-#             ret, buffer = cv2.imencode(".jpg", frame)
-#             if ret:
-#                 # Send frame as binary data only (same as REST API)
-#                 await websocket.send_bytes(buffer.tobytes())
-
-#     except WebSocketDisconnect:
-#         logger.info("WebSocket client disconnected")
-#     except Exception as e:
-#         logger.error(f"WebSocket error: {e}")
-#     finally:
-# cap.release()
-
-
-# @router.websocket("/ws/detect")
-# async def websocket_helmet_detection(websocket: WebSocket):
-#     """
-#     WebSocket: Helmet detection streaming (same as REST API)
-#     """
-#     await websocket.accept()
-#     logger.info("WebSocket client connected for helmet detection")
-
-#     # Start frame generation and streaming (no initial messages)
-#     await generate_websocket_frames(websocket)

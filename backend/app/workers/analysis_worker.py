@@ -18,8 +18,6 @@ POLL_INTERVAL = 2.0  # seconds
 
 def process_job(job, db):
     try:
-        logger.info(f"Processing job id={job.id}, image={job.image_path}")
-        # Call gemini_service in thread to avoid blocking
         analysis_result = asyncio.run(
             asyncio.to_thread(gemini_service.analyze_helmet_compliance, job.image_path)
         )
@@ -49,7 +47,6 @@ def process_job(job, db):
             existing.passenger_count = analysis_result.passenger_count
             existing.violations = analysis_result.violations
             existing.timestamp = timestamp
-            logger.info(f"Updated history for id={result_id}")
         else:
             rec = HistoryStatus(
                 id=result_id,
@@ -59,13 +56,12 @@ def process_job(job, db):
                 timestamp=timestamp,
             )
             db.add(rec)
-            logger.info(f"Inserted history for id={result_id}")
         # mark job done
         job.status = "done"
         db.add(job)
         db.commit()
-    except Exception as e:
-        logger.exception(f"Failed to process job id={job.id}: {e}")
+    except Exception:
+        logger.exception(f"Failed to process job id={job.id}")
         db.rollback()
         job.status = "failed"
         db.add(job)
@@ -73,7 +69,7 @@ def process_job(job, db):
 
 
 if __name__ == "__main__":
-    logger.info("Starting analysis worker")
+    # Simple polling worker loop. Keep minimal logging to reduce noise.
     while True:
         db = SessionLocal()
         try:

@@ -41,7 +41,7 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points_video":[[318,144],[319,516],[806,513],[787,142]],
+    "roi_points_video":[[240,6],[223,538],[573,538],[596,0]],
   "roi_points_webcam":[[90,120],[570,120],[570,360],[90,360]]
   },
   "model_settings": {
@@ -52,7 +52,7 @@
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "..\\src\\case\\case_08.mp4",
+    "video_path": "..\\src\\case\\case_10.mp4",
     "use_webcam": false,
     "webcam_id": 1
   },
