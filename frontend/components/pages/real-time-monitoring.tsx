@@ -148,7 +148,7 @@ export function RealTimeMonitoring() {
       id: h.id ?? `id_${Math.random().toString(36).slice(2, 9)}`,
       timestamp: h.timestamp ?? new Date().toLocaleString('th-TH'),
       camera: 'กล้องหลัก',
-      licensePlate: '',
+      licensePlate: '6กฮ-4422',
       helmetStatus: h.helmet_status === true ? 'wearing' : 'not-wearing',
       passengerCount: typeof h.passenger_count === 'number' ? h.passenger_count : 1,
       imageUrl: undefined,
