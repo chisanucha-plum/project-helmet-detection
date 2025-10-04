@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface NotFoundProps {
-  message?: string
+  readonly message?: string
 }
 
-export function NotFound({ message = "ไม่พบหน้าที่คุณต้องการ" }: NotFoundProps) {
+export function NotFound({ message = "ไม่พบหน้าที่คุณต้องการ" }: Readonly<NotFoundProps>) {
   const router = useRouter()
 
   return (

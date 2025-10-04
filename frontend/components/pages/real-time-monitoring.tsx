@@ -28,6 +28,7 @@ interface DetectionResult {
   licensePlate: string
   helmetStatus: "wearing" | "not-wearing"
   passengerCount: number
+  violations: string
   // confidence: number
   imageUrl?: string
 }
@@ -51,14 +52,12 @@ export function RealTimeMonitoring() {
       } else if ((containerElement as any).msRequestFullscreen) {
         (containerElement as any).msRequestFullscreen()
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen()
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen()
-      } else if ((document as any).msExitFullscreen) {
-        (document as any).msExitFullscreen()
-      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen()
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen()
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen()
     }
   }, [])
 
@@ -137,6 +136,7 @@ export function RealTimeMonitoring() {
 
   // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
   const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   // Poll backend for history records and map them to DetectionResult
   useEffect(() => {
@@ -150,8 +150,18 @@ export function RealTimeMonitoring() {
       camera: 'กล้องหลัก',
       licensePlate: '6กฮ-4422',
       helmetStatus: h.helmet_status === true ? 'wearing' : 'not-wearing',
+      violations: h.violations === undefined ? 'ไม่มี' : h.violations,
       passengerCount: typeof h.passenger_count === 'number' ? h.passenger_count : 1,
-      imageUrl: undefined,
+      // Prefer explicit image path from backend; otherwise try inferred snapshot URL
+      imageUrl: (() => {
+        if (h.image_path) {
+          const parts = String(h.image_path).split(/[/\\]/)
+          const name = parts.pop() ?? ''
+          return `${base}/snapshots/${encodeURIComponent(name)}`
+        }
+        if (h.id) return `${base}/snapshots/${encodeURIComponent(String(h.id) + '.jpg')}`
+        return undefined
+      })(),
     })
 
     const fetchHistory = async () => {
@@ -187,6 +197,15 @@ export function RealTimeMonitoring() {
     if (isRecording) setMjpegUrl(url)
     else setMjpegUrl(undefined)
   }, [isRecording])
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxUrl(null)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   const todayViolations = detections.filter((d) => d.helmetStatus === "not-wearing").length
   const todayTotal = detections.length
@@ -429,26 +448,46 @@ export function RealTimeMonitoring() {
                 className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted rounded-lg gap-3"
               >
                 <div className="flex items-center gap-4">
-                  <div className="text-sm text-muted-foreground min-w-[70px]">{detection.timestamp}</div>
-
-                  <div className="flex items-center gap-2">
-                    {detection.helmetStatus === "wearing" ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-red-500" />
-                    )}
-                    <span
-                      className={`text-sm font-medium ${detection.helmetStatus === "wearing" ? "text-green-600" : "text-red-600"
-                        }`}
+                  {/* Thumbnail (click to open lightbox) */}
+                  {detection.imageUrl ? (
+                    <button
+                      type="button"
+                      aria-label="Open snapshot"
+                      onClick={() => setLightboxUrl(detection.imageUrl ?? null)}
+                      className="p-0 border-0 bg-transparent rounded-md overflow-hidden"
                     >
-                      {detection.helmetStatus === "wearing" ? "สวมหมวกกันน็อค" : "ไม่สวมหมวกกันน็อค"}
-                    </span>
+                      <img
+                        src={detection.imageUrl}
+                        alt="snapshot"
+                        className="w-16 h-12 object-cover rounded-md pointer-events-none"
+                      />
+                    </button>
+                  ) : (
+                    <div className="w-16 h-12 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">No Image</div>
+                  )}
+
+                  <div>
+                    <div className="text-sm text-muted-foreground">{detection.timestamp}</div>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      {detection.helmetStatus === "wearing" ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span
+                        className={`text-sm font-medium ${detection.helmetStatus === "wearing" ? "text-green-600" : "text-red-600"
+                          }`}
+                      >
+                        {detection.helmetStatus === "wearing" ? "สวมหมวกกันน็อค" : "ไม่สวมหมวกกันน็อค"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <div className="flex items-center gap-1">
-                    <Car className="h-4 w-4 text-muted-foreground" />
+                    <BikeIcon className="h-4 w-4 text-muted-foreground" />
                     <span className="font-mono">{detection.licensePlate}</span>
                   </div>
 
@@ -470,6 +509,18 @@ export function RealTimeMonitoring() {
                 </div>
               </div>
             ))}
+
+            {/* Lightbox overlay */}
+            {lightboxUrl && (
+              <button
+                type="button"
+                aria-label="Close full image"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-0 border-0"
+                onClick={() => setLightboxUrl(null)}
+              >
+                <img src={lightboxUrl} alt="full" className="max-w-[95%] max-h-[95%] rounded" />
+              </button>
+            )}
 
             {detections.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
