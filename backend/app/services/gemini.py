@@ -80,12 +80,15 @@ class GeminiService:
             Rules:
             - helmet_status_: true only if ALL motorcycle riders wear helmets
             - passenger_count: count only people riding motorcycles
-            - violations: describe violations or "None" if compliant
+            - violations: describe violations or "ไม่มี" if compliant
 
-            Valid example: {"helmet_status": false, "passenger_count": 1, "violations": "Driver not wearing helmet"}"""
+            Important language rule: The value of the "violations" field MUST be written in Thai Always.
+            Do NOT translate the keys; only the text inside the "violations" value should be Thai.
+
+            Valid example: {"helmet_status": false, "passenger_count": 1, "violations": "ผู้ขับไม่สวมหมวกกันน็อค"}"""
 
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash-lite-001",
+                model="Gemini 2.0 Flash-Lite",
                 contents=[
                     types.Part(
                         inline_data=types.Blob(
@@ -98,8 +101,8 @@ class GeminiService:
             )
 
             analysis_text = response.text.strip()
+            logging.info(f"Gemini analysis response: {analysis_text}")
             return self._parse_to_analysis_result(analysis_text)
-
         except Exception as e:
             logging.warning(f"Gemini analysis failed: {e}")
             return None
