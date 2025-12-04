@@ -41,7 +41,7 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points_video":[[240,6],[223,538],[573,538],[596,0]],
+    "roi_points_video":[[210,22],[485,44],[455,432],[179,313]],
   "roi_points_webcam":[[90,120],[570,120],[570,360],[90,360]]
   },
   "model_settings": {
@@ -57,7 +57,7 @@
     "webcam_id": 1
   },
   "gemeni": {
-    "model": "gemini-1.5-flash",
+    "model": "gemini-2.5-flash-lite",
     "api_key_env": "GEMINI_API_KEY"
   }
 

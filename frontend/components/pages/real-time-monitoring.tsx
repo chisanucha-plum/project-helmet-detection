@@ -433,7 +433,7 @@ export function RealTimeMonitoring() {
       </div>
 
       {/* Detection Results */}
-      <Card>
+      <Card id="detection-results">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />

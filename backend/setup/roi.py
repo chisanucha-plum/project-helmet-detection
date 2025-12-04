@@ -24,7 +24,7 @@ def draw_roi(event, x, y, flags, param):
 
 # Resolve path relative to this file so the script works when launched from other CWDs
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VIDEO_REL_PATH = os.path.join("..", "..", "src", "case", "case_03.mp4")
+VIDEO_REL_PATH = os.path.join("..", "..", "src", "case", "case_11.mp4")
 VIDEO_PATH = os.path.normpath(os.path.join(BASE_DIR, VIDEO_REL_PATH))
 
 if not os.path.exists(VIDEO_PATH):
