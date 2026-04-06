@@ -1,5 +1,5 @@
-import { RealTimeMonitoring } from "@/components/pages/real-time-monitoring"
+import LoginPage from "@/components/pages/login"
 
 export default function HomePage() {
-  return <RealTimeMonitoring />
+  return <LoginPage />
 }

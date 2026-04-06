@@ -41,8 +41,8 @@
       "scale": 0.5,
       "thickness": 2
     },
-    "roi_points_video":[[210,22],[485,44],[455,432],[179,313]],
-  "roi_points_webcam":[[90,120],[570,120],[570,360],[90,360]]
+    "roi_points_video": [[26,20],[32,1240],[2100,1240],[2100,20]],
+    "roi_points_webcam": [[26,20],[32,1240],[2100,1240],[2100,20]]
   },
   "model_settings": {
     "helmet_model_path": "train\\epoch250.pt",
@@ -52,9 +52,9 @@
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "..\\src\\case\\case_10.mp4",
+    "video_path": "rtsp://Project:12345678@172.20.10.3:554/stream1",
     "use_webcam": false,
-    "webcam_id": 1
+    "webcam_id": 0
   },
   "gemeni": {
     "model": "gemini-2.5-flash-lite",

@@ -9,3 +9,4 @@ python-dotenv
 pydantic
 SQLAlchemy
 websockets
+psycopg2-binary
