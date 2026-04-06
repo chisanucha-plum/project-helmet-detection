@@ -10,3 +10,6 @@ pydantic
 SQLAlchemy
 websockets
 psycopg2-binary
+python-jose
+bcrypt
+structlog

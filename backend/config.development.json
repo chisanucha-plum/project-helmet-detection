@@ -59,6 +59,21 @@
   "gemeni": {
     "model": "gemini-2.5-flash-lite",
     "api_key_env": "GEMINI_API_KEY"
-  }
+  },
+   "key": {
+        "secret_key": "-",
+        "algorithm": "HS256",
+        "access_token_minutes": 60
+    },
+    "refresh_token_cookie": {
+        "key": "refresh_token",
+        "value": "_nexgpt_refresh_token",
+        "httponly": false,
+        "secure": false,
+        "samesite": "lax",
+        "max_age": 2592000,
+        "path": "/",
+        "domain": null
+    }
 
 }
