@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { Header } from "@/components/header"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { Sidebar } from "@/components/sidebar"
+import { usePathname } from "next/navigation"
 import type React from "react"
 import { useEffect, useState } from "react"
 
@@ -12,6 +13,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -55,6 +57,10 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   if (isLoading) {
     return <LoadingSpinner />
+  }
+
+  if (pathname === "/") {
+    return <>{children}</>
   }
 
   return (

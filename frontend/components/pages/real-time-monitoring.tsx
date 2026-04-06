@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users, Maximize, Minimize } from "lucide-react"
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 
 // We fetch real detection history from the backend instead of using mocks
 
@@ -137,6 +137,9 @@ export function RealTimeMonitoring() {
   // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
   const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const secondaryVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [secondaryCameraError, setSecondaryCameraError] = useState<string | null>(null)
+  const [secondaryCameraReady, setSecondaryCameraReady] = useState(false)
 
   // Poll backend for history records and map them to DetectionResult
   useEffect(() => {
@@ -196,6 +199,74 @@ export function RealTimeMonitoring() {
     console.log('MJPEG Stream URL:', url)
     if (isRecording) setMjpegUrl(url)
     else setMjpegUrl(undefined)
+  }, [isRecording])
+
+  // Secondary camera: use notebook webcam via browser API.
+  useEffect(() => {
+    let stream: MediaStream | null = null
+    let cancelled = false
+
+    const startSecondaryCamera = async () => {
+      if (!isRecording) {
+        setSecondaryCameraReady(false)
+        setSecondaryCameraError(null)
+        return
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setSecondaryCameraError('เบราว์เซอร์ไม่รองรับการเปิดกล้อง')
+        setSecondaryCameraReady(false)
+        return
+      }
+
+      try {
+        setSecondaryCameraError(null)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user',
+          },
+          audio: false,
+        })
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+
+        if (secondaryVideoRef.current) {
+          secondaryVideoRef.current.srcObject = stream
+          await secondaryVideoRef.current.play().catch(() => undefined)
+          const hasVideoMeta =
+            secondaryVideoRef.current.videoWidth > 0 &&
+            secondaryVideoRef.current.videoHeight > 0
+          if (hasVideoMeta) {
+            setSecondaryCameraReady(true)
+          } else {
+            secondaryVideoRef.current.onloadedmetadata = () => {
+              setSecondaryCameraReady(true)
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to open secondary camera:', error)
+        setSecondaryCameraError('ไม่สามารถเปิดกล้องโน้ตบุ๊กได้ (ตรวจสิทธิ์กล้อง/กล้องถูกใช้งานอยู่)')
+        setSecondaryCameraReady(false)
+      }
+    }
+
+    startSecondaryCamera()
+
+    return () => {
+      cancelled = true
+      if (secondaryVideoRef.current) {
+        secondaryVideoRef.current.srcObject = null
+      }
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop())
+      }
+    }
   }, [isRecording])
 
   // Close lightbox on Escape
@@ -395,12 +466,23 @@ export function RealTimeMonitoring() {
               id="video-container-2"
               className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden group"
             >
-              <img 
-                id="static-image" 
-                src="/f.jpg" 
-                alt="License Plate Detection" 
-                className="absolute inset-0 w-full h-full object-cover" 
+              <video
+                id="secondary-webcam"
+                ref={secondaryVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity ${secondaryCameraReady ? 'opacity-100' : 'opacity-0'}`}
               />
+
+              {!secondaryCameraReady && (
+                <div className="relative z-10 text-center px-4">
+                  <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                  <span className="text-sm text-muted-foreground">
+                    {secondaryCameraError ?? 'กำลังเชื่อมต่อกล้องโน้ตบุ๊ก...'}
+                  </span>
+                </div>
+              )}
               
               {/* Recording indicator */}
               <div className="absolute top-3 left-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs z-20">
@@ -413,13 +495,15 @@ export function RealTimeMonitoring() {
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  const img = document.getElementById('static-image') as HTMLImageElement
-                  if (img.requestFullscreen) {
-                    img.requestFullscreen()
-                  } else if ((img as any).webkitRequestFullscreen) {
-                    (img as any).webkitRequestFullscreen()
-                  } else if ((img as any).msRequestFullscreen) {
-                    (img as any).msRequestFullscreen()
+                  const video = document.getElementById('secondary-webcam') as HTMLVideoElement | null
+                  const target = video || document.getElementById('video-container-2')
+                  if (!target) return
+                  if ((target as any).requestFullscreen) {
+                    (target as any).requestFullscreen()
+                  } else if ((target as any).webkitRequestFullscreen) {
+                    (target as any).webkitRequestFullscreen()
+                  } else if ((target as any).msRequestFullscreen) {
+                    (target as any).msRequestFullscreen()
                   }
                 }}
                 className="absolute top-3 right-3 z-20 transition-opacity"
@@ -433,7 +517,7 @@ export function RealTimeMonitoring() {
       </div>
 
       {/* Detection Results */}
-      <Card>
+      <Card id="detection-results">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />

@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   {
     icon: Home,
     label: "หน้าหลัก",
-    path: "/",
+    path: "/real-time-monitoring",
     description: "การตรวจสอบแบบ Real-time",
   },
   {
