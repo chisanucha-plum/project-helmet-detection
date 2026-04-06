@@ -1,10 +1,25 @@
 import logging
+from contextlib import asynccontextmanager
 
+from app.database.database import init_database
 from app.routers.router import get_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        init_database()
+    except SQLAlchemyError as e:
+        logger.warning(f"Database init skipped: {e}")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 logging.basicConfig(level=logging.WARNING, format="%(message)s")
 
