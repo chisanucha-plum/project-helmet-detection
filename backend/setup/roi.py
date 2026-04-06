@@ -24,12 +24,12 @@ def draw_roi(event, x, y, flags, param):
 
 # Resolve path relative to this file so the script works when launched from other CWDs
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VIDEO_REL_PATH = os.path.join("..", "..", "src", "case", "case_11.mp4")
+VIDEO_REL_PATH = os.path.join("..", "..", "src", "image", "00.png")
 VIDEO_PATH = os.path.normpath(os.path.join(BASE_DIR, VIDEO_REL_PATH))
 
 if not os.path.exists(VIDEO_PATH):
     # Fallback to original relative path (maintain backwards compatibility)
-    VIDEO_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "case", "case_03.mp4"))
+    VIDEO_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "image", "00.png"))
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 if not cap.isOpened():
@@ -41,10 +41,12 @@ cap.release()
 if not ret or frame is None:
     raise RuntimeError(f"Failed to read first frame from video: {VIDEO_PATH}")
 
+frame_height, frame_width = frame.shape[:2]
+
 WINDOW_NAME = "Select ROI"
-cv2.namedWindow(WINDOW_NAME)
+cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 cv2.setMouseCallback(WINDOW_NAME, draw_roi)
-cv2.resizeWindow(WINDOW_NAME, 940, 680)
+cv2.resizeWindow(WINDOW_NAME, frame_width, frame_height)
 
 # instructions = (
 #     "Left-click to add points.\n"
