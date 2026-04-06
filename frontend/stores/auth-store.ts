@@ -8,13 +8,13 @@ export function createAuthHeadersFromStore(): Record<string, string> {
     }
 }
 
-export type UserRole = 'admin' | 'user' | null
+export type UserRole = 'admin' | 'security' | 'user' | null
 
 export function getStoredUserRole(): UserRole {
     try {
         if (typeof window === 'undefined') return null
         const role = localStorage.getItem('userRole')
-        if (role === 'admin' || role === 'user') return role
+        if (role === 'admin' || role === 'security' || role === 'user') return role
         return null
     } catch {
         return null

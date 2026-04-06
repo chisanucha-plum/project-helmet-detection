@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "./config"
 
-export type UserRole = "admin" | "user"
+export type UserRole = "admin" | "security" | "user"
 
 export type LoginRequest = {
     email: string
@@ -9,18 +9,21 @@ export type LoginRequest = {
 
 export type LoginResponse = {
     access_token: string
-    token_type: "bearer"
-    expires_at: string
-    user: {
-        id: number
-        name: string
-        email: string
-        role: UserRole
-    }
+    refresh_token: string
 }
 
-export async function loginWithMockApi(payload: LoginRequest): Promise<LoginResponse> {
-    const res = await fetch(`${API_BASE_URL}/mock/login`, {
+export type CurrentUserResponse = {
+    id: string
+    username: string | null
+    email: string | null
+    full_name: string | null
+    role: UserRole
+    created_at: string | null
+    last_login: string | null
+}
+
+export async function loginWithApi(payload: LoginRequest): Promise<LoginResponse> {
+    const res = await fetch(`${API_BASE_URL}/user/login`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -34,6 +37,23 @@ export async function loginWithMockApi(payload: LoginRequest): Promise<LoginResp
     }
 
     return (await res.json()) as LoginResponse
+}
+
+export async function getCurrentUser(accessToken: string): Promise<CurrentUserResponse> {
+    const res = await fetch(`${API_BASE_URL}/user/me`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+    })
+
+    if (!res.ok) {
+        const message = await safeReadErrorMessage(res)
+        throw new Error(message || "Failed to fetch current user")
+    }
+
+    return (await res.json()) as CurrentUserResponse
 }
 
 async function safeReadErrorMessage(res: Response): Promise<string | null> {

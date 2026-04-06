@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { loginWithMockApi } from "@/app/api/auth"
+import { getCurrentUser, loginWithApi } from "@/app/api/auth"
 import {
   Card,
   CardContent,
@@ -37,13 +37,16 @@ export function LoginForm({
     setError(null)
 
     try {
-      const response = await loginWithMockApi({ email, password })
+      const response = await loginWithApi({ email, password })
+      const currentUser = await getCurrentUser(response.access_token)
+      const appRole = currentUser.role
+      const userName = currentUser.full_name || currentUser.username || currentUser.email || "User"
 
       localStorage.setItem("token", response.access_token)
-      localStorage.setItem("userRole", response.user.role)
-      localStorage.setItem("userName", response.user.name)
+      localStorage.setItem("userRole", appRole)
+      localStorage.setItem("userName", userName)
 
-      if (response.user.role === "admin") {
+      if (appRole === "admin") {
         router.push("/dashboard")
         return
       }
@@ -89,12 +92,6 @@ export function LoginForm({
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    
-                  </a>
                 </div>
                 <Input
                   id="password"

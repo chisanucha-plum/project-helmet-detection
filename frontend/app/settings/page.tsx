@@ -22,9 +22,10 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { getStoredUserRole } from "@/stores/auth-store"
 import { BellRing, Camera, Save, Settings2, ShieldCheck, UserRound } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
-type UserRole = "admin" | "user"
+type UserRole = "admin" | "security" | "user"
 
 type AppSettings = {
   fullName: string
@@ -67,11 +68,11 @@ const STORAGE_KEY = "helmet_app_settings"
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [savedMessage, setSavedMessage] = useState("")
-  const [role, setRole] = useState<UserRole>("user")
+  const [role, setRole] = useState<UserRole>("security")
 
   useEffect(() => {
     const storedRole = getStoredUserRole()
-    if (storedRole === "admin" || storedRole === "user") {
+    if (storedRole === "admin" || storedRole === "security" || storedRole === "user") {
       setRole(storedRole)
     }
 
@@ -118,7 +119,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant={roleBadgeVariant}>Role: {role === "admin" ? "Admin" : "User"}</Badge>
+          <Badge variant={roleBadgeVariant}>Role: {role === "admin" ? "Admin" : role === "security" ? "Security" : "User"}</Badge>
           <Button onClick={saveSettings} className="gap-2">
             <Save className="h-4 w-4" />
             บันทึกทั้งหมด

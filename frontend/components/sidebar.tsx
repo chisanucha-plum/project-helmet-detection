@@ -39,16 +39,19 @@ const navItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   {
-    icon: Settings,
-    label: "ตั้งค่า",
-    path: "/settings",
-    description: "การตั้งค่าระบบ",
-  },
-  {
     icon: HelpCircle,
     label: "ช่วยเหลือ",
     path: "/help",
     description: "คู่มือการใช้งาน",
+  },
+]
+
+const adminOnlyBottomNavItems: NavItem[] = [
+  {
+    icon: Settings,
+    label: "ตั้งค่า",
+    path: "/settings",
+    description: "การตั้งค่าระบบ",
   },
 ]
 
@@ -67,6 +70,14 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
     }
 
     return navItems.filter((item) => item.path !== "/dashboard")
+  }, [role])
+
+  const visibleBottomNavItems = useMemo(() => {
+    if (role === "admin" || role === "security") {
+      return [...adminOnlyBottomNavItems, ...bottomNavItems]
+    }
+
+    return bottomNavItems
   }, [role])
 
   const handleNavigation = (path: string) => {
@@ -188,7 +199,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       {/* Bottom Navigation */}
       <div className="p-3 sm:p-4 border-t border-gray-200">
         <div className="space-y-1">
-          {bottomNavItems.map((item) => {
+          {visibleBottomNavItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.path
 
