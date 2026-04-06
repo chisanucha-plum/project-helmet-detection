@@ -376,7 +376,7 @@ export function RealTimeMonitoring() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Camera className="h-5 w-5" />
-              กล้องหลัก - ตรวจจับผู้ขับขี่
+              Camera 1 - ตรวจจับผู้ขับขี่
               <Badge variant="secondary" className="ml-auto">
                 Live
               </Badge>
@@ -434,7 +434,7 @@ export function RealTimeMonitoring() {
                   <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
                     <div className="flex items-center gap-2 text-sm">
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span>กล้องหลัก - ตรวจจับผู้ขับขี่</span>
+                      <span>Camera 1- ตรวจจับผู้ขับขี่</span>
                     </div>
                     <Button
                       size="sm"
@@ -455,7 +455,7 @@ export function RealTimeMonitoring() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Camera className="h-5 w-5" />
-              กล้องรอง - ตรวจจับป้ายทะเบียน
+              Camera 2 - ตรวจจับป้ายทะเบียน
               <Badge variant="secondary" className="ml-auto">
                 Live
               </Badge>

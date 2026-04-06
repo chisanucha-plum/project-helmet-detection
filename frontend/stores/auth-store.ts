@@ -7,3 +7,20 @@ export function createAuthHeadersFromStore(): Record<string, string> {
         return { 'Content-Type': 'application/json' }
     }
 }
+
+export type UserRole = 'admin' | 'user' | null
+
+export function getStoredUserRole(): UserRole {
+    try {
+        if (typeof window === 'undefined') return null
+        const role = localStorage.getItem('userRole')
+        if (role === 'admin' || role === 'user') return role
+        return null
+    } catch {
+        return null
+    }
+}
+
+export function isAdminRole(): boolean {
+    return getStoredUserRole() === 'admin'
+}

@@ -1,6 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { Bell, Menu } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from 'next/navigation'
@@ -12,6 +13,19 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: HeaderProps) {
+  const router = useRouter()
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('token')
+      localStorage.removeItem('userRole')
+      localStorage.removeItem('userName')
+    } catch {
+      // ignore storage errors and continue logout flow
+    }
+    router.replace('/')
+  }
+
   return (
     <header className="h-10 sm:h-12 bg-white border border-gray-300 flex items-center justify-between px-3 sm:px-4 rounded-2xl mx-3 mt-3 mb-1">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -36,9 +50,18 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
       </div>
 
       <div className="flex items-center gap-1 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="hover:bg-gray-100 hover:text-gray-900 h-6 sm:h-7 rounded-md px-2"
+        >
+          <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="ml-1 text-xs hidden sm:inline">Logout</span>
+        </Button>
         <Popover>
           <PopoverTrigger asChild>
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               className="relative hover:bg-gray-100 hover:text-gray-900 h-6 w-6 sm:h-7 sm:w-7 rounded-md p-0"
@@ -47,7 +70,7 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
               <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 bg-white rounded-full"></span>
               </span>
-            </Button>
+            </Button> */} 
           </PopoverTrigger>
           <PopoverContent sideOffset={8} className="w-72">
             <NotificationList />

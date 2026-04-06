@@ -4,7 +4,9 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { Header } from "@/components/header"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { Sidebar } from "@/components/sidebar"
+import { getStoredUserRole } from "@/stores/auth-store"
 import { usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useState } from "react"
 
@@ -14,6 +16,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -40,6 +43,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       clearTimeout(timer)
     }
   }, [])
+
+  useEffect(() => {
+    if (pathname !== "/dashboard") return
+
+    const role = getStoredUserRole()
+    if (role !== "admin") {
+      router.replace("/real-time-monitoring")
+    }
+  }, [pathname, router])
 
   const toggleSidebar = () => {
     if (isMobile) {

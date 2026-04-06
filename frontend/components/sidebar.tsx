@@ -2,9 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { getStoredUserRole, type UserRole } from "@/stores/auth-store"
 import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
+import { useEffect, useMemo, useState } from "react"
 
 interface SidebarProps {
   collapsed: boolean
@@ -53,6 +55,19 @@ const bottomNavItems: NavItem[] = [
 export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [role, setRole] = useState<UserRole>(null)
+
+  useEffect(() => {
+    setRole(getStoredUserRole())
+  }, [])
+
+  const visibleNavItems = useMemo(() => {
+    if (role === "admin") {
+      return navItems
+    }
+
+    return navItems.filter((item) => item.path !== "/dashboard")
+  }, [role])
 
   const handleNavigation = (path: string) => {
     router.push(path)
@@ -116,7 +131,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       {/* Navigation */}
       <nav className="flex-1 p-2 sm:p-3 overflow-y-auto">
         <div className="space-y-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.path
 
