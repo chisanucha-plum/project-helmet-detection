@@ -29,6 +29,15 @@ def create_deals_table(engine):
     Base.metadata.create_all(bind=engine)
 
 
+def init_database():
+    # Ensure all ORM models are imported so SQLAlchemy registers their tables
+    from app.database import analysis_job  # noqa: F401
+    from app.database import history_status  # noqa: F401
+    from app.database import user  # noqa: F401
+
+    Base.metadata.create_all(bind=engine)
+
+
 def get_db():
     db = SessionLocal()
     try:

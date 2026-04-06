@@ -2,6 +2,8 @@ import json
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any, Literal
+
 
 try:
     from dotenv import load_dotenv
@@ -178,12 +180,66 @@ class GemeniConfig:
 
 
 @dataclass
+class RefreshTokenCookie:
+    key: str
+    value: str
+    httponly: bool
+    secure: bool
+    max_age: int
+    path: str
+    domain: str | None
+    samesite: Literal["lax", "strict", "none"] = "lax"
+
+    @staticmethod
+    def from_dict(obj: Any) -> "RefreshTokenCookie":
+        _key = str(obj.get("key"))
+        _value = str(obj.get("value"))
+        _httponly = bool(obj.get("httponly", False))
+        _secure = bool(obj.get("secure", False))
+        _samesite = str(obj.get("samesite", "lax"))
+        _max_age = int(obj.get("max_age", 2592000))
+        _path = str(obj.get("path", "/"))
+        _domain = obj.get("domain")
+
+        return RefreshTokenCookie(
+            key=_key,
+            value=_value,
+            httponly=_httponly,
+            secure=_secure,
+            samesite=_samesite,
+            max_age=_max_age,
+            path=_path,
+            domain=_domain,
+        )
+
+
+@dataclass
+class Key:
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_minutes: int = 30
+
+    @staticmethod
+    def from_dict(obj: Any) -> "Key":
+        _secret_key = str(obj.get("secret_key"))
+        _algorithm = str(obj.get("algorithm", "HS256"))
+        _access_token_minutes = int(obj.get("access_token_minutes", 30))
+        return Key(
+            secret_key=_secret_key,
+            algorithm=_algorithm,
+            access_token_minutes=_access_token_minutes,
+        )
+
+
+@dataclass
 class Configuration:
     detection_visualizer: DetectionVisualizerConfig
     model_settings: ModelSettingsConfig
     application_settings: ApplicationSettingsConfig
     gemeni: GemeniConfig
     postgres: PostgresConfig
+    refresh_token_cookie: RefreshTokenCookie
+    key: Key
 
     @staticmethod
     def from_dict(data: dict) -> "Configuration":
@@ -197,6 +253,10 @@ class Configuration:
             ),
             gemeni=GemeniConfig.from_dict(data["gemeni"]),
             postgres=PostgresConfig.from_env(),  # อ่านจาก .env เท่านั้น
+            refresh_token_cookie=RefreshTokenCookie.from_dict(
+                data["refresh_token_cookie"]
+            ),
+            key=Key.from_dict(data["key"]),
         )
 
     @staticmethod
