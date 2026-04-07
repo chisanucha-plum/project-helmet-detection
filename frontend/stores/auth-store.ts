@@ -8,6 +8,15 @@ export function createAuthHeadersFromStore(): Record<string, string> {
     }
 }
 
+export function getStoredAccessToken(): string | null {
+    try {
+        if (typeof window === 'undefined') return null
+        return localStorage.getItem('token')
+    } catch {
+        return null
+    }
+}
+
 export type UserRole = 'admin' | 'security' | 'user' | null
 
 export function getStoredUserRole(): UserRole {
@@ -32,5 +41,38 @@ export function getStoredUserEmail(): string | null {
         return email && email.trim().length > 0 ? email : null
     } catch {
         return null
+    }
+}
+
+export function setStoredCurrentUser(params: {
+    role: string | null | undefined
+    email: string | null | undefined
+    fullName?: string | null
+    username?: string | null
+}): void {
+    try {
+        if (typeof window === 'undefined') return
+
+        const normalizedRole =
+            params.role === 'admin' || params.role === 'security' || params.role === 'user'
+                ? params.role
+                : null
+
+        if (normalizedRole) {
+            localStorage.setItem('userRole', normalizedRole)
+        } else {
+            localStorage.removeItem('userRole')
+        }
+
+        if (params.email && params.email.trim().length > 0) {
+            localStorage.setItem('userEmail', params.email)
+        }
+
+        const userName = params.fullName || params.username || params.email || null
+        if (userName) {
+            localStorage.setItem('userName', userName)
+        }
+    } catch {
+        // Ignore storage errors in helper
     }
 }
