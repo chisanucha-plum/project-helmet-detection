@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { getStoredUserRole, type UserRole } from "@/stores/auth-store"
+import { getStoredUserEmail, getStoredUserRole, type UserRole } from "@/stores/auth-store"
 import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
@@ -59,10 +59,20 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
   const pathname = usePathname()
   const router = useRouter()
   const [role, setRole] = useState<UserRole>(null)
+  const [email, setEmail] = useState<string | null>(null)
 
   useEffect(() => {
     setRole(getStoredUserRole())
+    setEmail(getStoredUserEmail())
   }, [])
+
+  const roleDisplay = role ?? "unknown"
+  const roleColorClass =
+    role === "admin"
+      ? "text-blue-600"
+      : role === "security"
+        ? "text-green-600"
+        : "text-gray-600"
 
   const visibleNavItems = useMemo(() => {
     if (role === "admin") {
@@ -185,13 +195,13 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       {/* Status Indicator */}
       {(!collapsed || isMobile) && (
         <div className="p-3 sm:p-4 border-t border-gray-200">
-          <div className="bg-gray-50 rounded-lg p-2 sm:p-3">
-            <div className="flex items-center gap-2 mb-1 sm:mb-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
-              <span className="text-xs font-medium text-gray-700 truncate">สถานะระบบ</span>
+          <div className="rounded-md border border-gray-300 bg-transparent p-2">
+            <p className="truncate text-[11px] font-semibold text-gray-600  decoration-blue-500 underline-offset-2">
+              {email ?? "-"}
+            </p>
+            <div className="mt-1.5 inline-flex items-center rounded-sm border border-gray-300 bg-white px-2 py-0.5">
+              <span className={cn("text-xs font-semibold lowercase", roleColorClass)}>{roleDisplay}</span>
             </div>
-            <p className="text-xs text-gray-600 truncate">เชื่อมต่อแล้ว</p>
-            <p className="text-xs text-gray-500 truncate">กล้อง: 2/2 ออนไลน์</p>
           </div>
         </div>
       )}

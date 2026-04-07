@@ -20,6 +20,7 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
       localStorage.removeItem('token')
       localStorage.removeItem('userRole')
       localStorage.removeItem('userName')
+      localStorage.removeItem('userEmail')
     } catch {
       // ignore storage errors and continue logout flow
     }

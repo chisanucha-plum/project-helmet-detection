@@ -45,6 +45,7 @@ export function LoginForm({
       localStorage.setItem("token", response.access_token)
       localStorage.setItem("userRole", appRole)
       localStorage.setItem("userName", userName)
+      localStorage.setItem("userEmail", currentUser.email || email)
 
       if (appRole === "admin") {
         router.push("/dashboard")
@@ -112,7 +113,18 @@ export function LoginForm({
                   className="bg-orange-500 text-white hover:bg-orange-600"
                   disabled={loading}
                 >
-                  {loading ? "Signing in..." : "Login"}
+                  {loading ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>Signin</span>
+                      <span className="inline-flex items-center gap-1" aria-hidden="true">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 animate-pulse [animation-delay:180ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-300 animate-pulse [animation-delay:360ms]" />
+                      </span>
+                    </span>
+                  ) : (
+                    "Login"
+                  )}
                 </Button>
                 <Button
                   type="button"

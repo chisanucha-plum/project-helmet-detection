@@ -24,3 +24,13 @@ export function getStoredUserRole(): UserRole {
 export function isAdminRole(): boolean {
     return getStoredUserRole() === 'admin'
 }
+
+export function getStoredUserEmail(): string | null {
+    try {
+        if (typeof window === 'undefined') return null
+        const email = localStorage.getItem('userEmail')
+        return email && email.trim().length > 0 ? email : null
+    } catch {
+        return null
+    }
+}

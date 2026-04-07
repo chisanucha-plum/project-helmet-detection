@@ -2,7 +2,6 @@
 
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Header } from "@/components/header"
-import { LoadingSpinner } from "@/components/loading-spinner"
 import { Sidebar } from "@/components/sidebar"
 import { getStoredUserRole } from "@/stores/auth-store"
 import { usePathname } from "next/navigation"
@@ -20,7 +19,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const handleResize = () => {
@@ -35,12 +33,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     handleResize()
     window.addEventListener("resize", handleResize)
 
-    // Simulate initial loading
-    const timer = setTimeout(() => setIsLoading(false), 1000)
-
     return () => {
       window.removeEventListener("resize", handleResize)
-      clearTimeout(timer)
     }
   }, [])
 
@@ -65,10 +59,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (isMobile) {
       setSidebarOpen(false)
     }
-  }
-
-  if (isLoading) {
-    return <LoadingSpinner />
   }
 
   if (pathname === "/") {
