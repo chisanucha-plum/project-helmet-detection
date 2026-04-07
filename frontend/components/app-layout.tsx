@@ -1,9 +1,14 @@
 "use client"
 
 import { ErrorBoundary } from "@/components/error-boundary"
+import { getCurrentUser } from "@/app/api/auth"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
-import { getStoredUserRole } from "@/stores/auth-store"
+import {
+  getStoredAccessToken,
+  getStoredUserRole,
+  setStoredCurrentUser,
+} from "@/stores/auth-store"
 import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
 import type React from "react"
@@ -46,6 +51,45 @@ export function AppLayout({ children }: AppLayoutProps) {
       router.replace("/real-time-monitoring")
     }
   }, [pathname, router])
+
+  useEffect(() => {
+    if (pathname === "/") return
+
+    let cancelled = false
+
+    const syncCurrentUser = async () => {
+      const token = getStoredAccessToken()
+      if (!token) return
+
+      try {
+        const currentUser = await getCurrentUser(token)
+        if (cancelled) return
+
+        setStoredCurrentUser({
+          role: currentUser.role,
+          email: currentUser.email,
+          fullName: currentUser.full_name,
+          username: currentUser.username,
+        })
+      } catch {
+        // Keep existing local cache when sync fails (offline / expired token)
+      }
+    }
+
+    const onFocus = () => {
+      void syncCurrentUser()
+    }
+
+    void syncCurrentUser()
+    const intervalId = window.setInterval(syncCurrentUser, 15000)
+    window.addEventListener("focus", onFocus)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [pathname])
 
   const toggleSidebar = () => {
     if (isMobile) {

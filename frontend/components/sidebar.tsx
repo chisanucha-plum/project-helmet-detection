@@ -2,7 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { getStoredUserEmail, getStoredUserRole, type UserRole } from "@/stores/auth-store"
+import {
+  AUTH_USER_UPDATED_EVENT,
+  getStoredUserEmail,
+  getStoredUserRole,
+  type UserRole,
+} from "@/stores/auth-store"
 import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
@@ -62,8 +67,19 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
   const [email, setEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    setRole(getStoredUserRole())
-    setEmail(getStoredUserEmail())
+    const syncUserFromStorage = () => {
+      setRole(getStoredUserRole())
+      setEmail(getStoredUserEmail())
+    }
+
+    syncUserFromStorage()
+    window.addEventListener("storage", syncUserFromStorage)
+    window.addEventListener(AUTH_USER_UPDATED_EVENT, syncUserFromStorage)
+
+    return () => {
+      window.removeEventListener("storage", syncUserFromStorage)
+      window.removeEventListener(AUTH_USER_UPDATED_EVENT, syncUserFromStorage)
+    }
   }, [])
 
   const roleDisplay = role ?? "unknown"
