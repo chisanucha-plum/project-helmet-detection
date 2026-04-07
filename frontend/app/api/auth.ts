@@ -10,6 +10,7 @@ export type LoginRequest = {
 export type LoginResponse = {
     access_token: string
     refresh_token: string
+    user?: CurrentUserResponse
 }
 
 export type CurrentUserResponse = {

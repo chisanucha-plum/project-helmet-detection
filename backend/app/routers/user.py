@@ -18,6 +18,8 @@ from app.core.security import (
 from app.database.database import get_db
 from app.database.user import User
 from app.schemas.user import (
+    AuthUserSnapshot,
+    LoginResponse,
     PasswordResetConfirm,
     PasswordResetRequest,
     Token,
@@ -72,7 +74,7 @@ def register(
         ) from e
 
 
-@router.post("/login", status_code=status.HTTP_200_OK)
+@router.post("/login", status_code=status.HTTP_200_OK, response_model=LoginResponse)
 def login(
     response: Response,
     data: UserLogin,
@@ -90,9 +92,16 @@ def login(
         )
 
         set_refresh_token_cookie(response, refresh_token)
-        return Token(
+        return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
+            user=AuthUserSnapshot(
+                id=user_obj.id,
+                username=user_obj.username,
+                email=user_obj.email,
+                full_name=user_obj.full_name,
+                role=user_obj.role,
+            ),
         )
 
     except HTTPException:

@@ -74,6 +74,8 @@ export function setStoredCurrentUser(params: {
         if (userName) {
             localStorage.setItem('userName', userName)
         }
+
+        window.dispatchEvent(new Event(AUTH_USER_UPDATED_EVENT))
     } catch {
         // Ignore storage errors in helper
     }

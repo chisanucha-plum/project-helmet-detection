@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser, loginWithApi } from "@/app/api/auth"
+import { setStoredCurrentUser } from "@/stores/auth-store"
 import {
   Card,
   CardContent,
@@ -38,14 +39,17 @@ export function LoginForm({
 
     try {
       const response = await loginWithApi({ email, password })
-      const currentUser = await getCurrentUser(response.access_token)
+      const currentUser = response.user ?? (await getCurrentUser(response.access_token))
       const appRole = currentUser.role
       const userName = currentUser.full_name || currentUser.username || currentUser.email || "User"
 
       localStorage.setItem("token", response.access_token)
-      localStorage.setItem("userRole", appRole)
-      localStorage.setItem("userName", userName)
-      localStorage.setItem("userEmail", currentUser.email || email)
+      setStoredCurrentUser({
+        role: appRole,
+        email: currentUser.email || email,
+        fullName: userName,
+        username: currentUser.username,
+      })
 
       if (appRole === "admin") {
         router.push("/dashboard")

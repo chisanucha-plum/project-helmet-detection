@@ -25,6 +25,23 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const enforceRouteAccess = (role: string | null, currentPath: string) => {
+    const isAdminOnlyPage = currentPath === "/dashboard"
+    const isSettingsPage = currentPath === "/settings"
+
+    if (isAdminOnlyPage && role !== "admin") {
+      router.replace("/not-found")
+      return false
+    }
+
+    if (isSettingsPage && role !== "admin" && role !== "security") {
+      router.replace("/not-found")
+      return false
+    }
+
+    return true
+  }
+
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 1024
@@ -44,12 +61,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [])
 
   useEffect(() => {
-    if (pathname !== "/dashboard") return
-
     const role = getStoredUserRole()
-    if (role !== "admin") {
-      router.replace("/real-time-monitoring")
-    }
+    enforceRouteAccess(role, pathname)
   }, [pathname, router])
 
   useEffect(() => {
@@ -71,6 +84,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           fullName: currentUser.full_name,
           username: currentUser.username,
         })
+        enforceRouteAccess(currentUser.role, pathname)
       } catch {
         // Keep existing local cache when sync fails (offline / expired token)
       }

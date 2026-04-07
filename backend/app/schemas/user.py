@@ -43,6 +43,18 @@ class Token(BaseModel):
     refresh_token: str
 
 
+class AuthUserSnapshot(BaseModel):
+    id: str
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    role: str
+
+
+class LoginResponse(Token):
+    user: AuthUserSnapshot
+
+
 class UserResponse(BaseModel):
     id: str
     username: Optional[str] = None
