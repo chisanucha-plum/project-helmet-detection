@@ -8,6 +8,8 @@ export function createAuthHeadersFromStore(): Record<string, string> {
     }
 }
 
+export const AUTH_USER_UPDATED_EVENT = "auth-user-updated"
+
 export function getStoredAccessToken(): string | null {
     try {
         if (typeof window === 'undefined') return null
