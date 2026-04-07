@@ -11,12 +11,19 @@ import React, { useEffect, useState, useCallback, useRef } from "react"
 // Small clock component that updates every second. Kept isolated so the parent
 // RealTimeMonitoring component does not re-render every tick.
 function NowClock() {
-  const [now, setNow] = useState(() => new Date())
+  const [isMounted, setIsMounted] = useState(false)
+  const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
+    setIsMounted(true)
+    setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
+
+  if (!isMounted || !now) {
+    return <span suppressHydrationWarning>--:--:--</span>
+  }
 
   return <>{now.toLocaleTimeString('th-TH')}</>
 }
