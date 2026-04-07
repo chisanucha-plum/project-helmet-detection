@@ -52,7 +52,8 @@
     "helmet_detection_interval": 50
   },
   "application_settings": {
-    "video_path": "rtsp://Project:12341234@172.20.10.2:554/stream1",
+    "video_path": "",
+    "video_path_env": "RTSP_VIDEO_PATH",
     "use_webcam": false,
     "webcam_id": 0
   },
@@ -60,8 +61,8 @@
     "model": "gemini-2.5-flash-lite",
     "api_key_env": "GEMINI_API_KEY"
   },
-   "key": {
-        "secret_key": "-",
+     "key": {
+       "secret_key": "-",
         "algorithm": "HS256",
         "access_token_minutes": 60
     },

@@ -130,9 +130,19 @@ class ApplicationSettingsConfig:
 
     @staticmethod
     def from_dict(data: dict) -> "ApplicationSettingsConfig":
+        use_webcam = bool(data["use_webcam"])
+        video_path = data.get("video_path", "")
+        video_path_env = data.get("video_path_env", "RTSP_VIDEO_PATH")
+        video_path = os.environ.get(video_path_env, video_path)
+
+        if not use_webcam and (not video_path or not str(video_path).strip()):
+            raise ValueError(
+                f"Missing video source: set {video_path_env} in environment or provide application_settings.video_path"
+            )
+
         return ApplicationSettingsConfig(
-            video_path=data["video_path"],
-            use_webcam=data["use_webcam"],
+            video_path=video_path,
+            use_webcam=use_webcam,
             webcam_id=data["webcam_id"],
         )
 
