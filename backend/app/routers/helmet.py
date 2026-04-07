@@ -30,12 +30,17 @@ router = APIRouter(tags=["Helmet Detection"])
 VIDEO_SOURCE_ERROR = "Cannot open video source"
 SNAPSHOT_DIR = "snapshots"
 COOLDOWN_SECONDS = 20.0  # Prevent duplicate captures within 20 seconds
+STREAM_RECONNECT_DELAY_SECONDS = 2.0
+READ_RETRY_DELAY_SECONDS = 0.1
+READ_FAILURE_THRESHOLD = 3
+FFMPEG_OPEN_TIMEOUT_MS = 10_000
+FFMPEG_READ_TIMEOUT_MS = 10_000
 
 # Global object tracking
 tracked_objects: Dict[str, float] = {}  # object_id -> last_seen_time
 # Simple in-memory tracker to assign stable IDs across frames
 # track_id -> (center_x, center_y, last_seen_time)
-recent_tracks: Dict[str, tuple] = {}
+recent_tracks: Dict[str, tuple[int, int, float]] = {}
 # Next numeric id for new tracks
 next_track_id = 1
 # Matching params
@@ -89,27 +94,6 @@ def is_motorcycle_in_center_roi(bbox, roi_points) -> bool:
         distance_from_center_x <= center_threshold_x
         and distance_from_center_y <= center_threshold_y
     )
-
-
-def calculate_motorcycle_id(bbox) -> str:
-    """
-    Generate motorcycle ID based on position grid.
-
-    Args:
-        bbox: Bounding box coordinates [x1, y1, x2, y2]
-
-    Returns:
-        str: Motorcycle ID in format 'mc_x_y'
-    """
-    x1, y1, x2, y2 = bbox
-    center_x = int((x1 + x2) / 2)
-    center_y = int((y1 + y2) / 2)
-
-    # Create ID based on 85x85 grid for stable tracking
-    grid_x = center_x // 85
-    grid_y = center_y // 85
-
-    return f"mc_{grid_x}_{grid_y}"
 
 
 def get_track_id_from_bbox(bbox) -> str:
@@ -218,6 +202,24 @@ def crop_roi_area(frame, roi_points):
     return cropped_frame
 
 
+def enqueue_analysis_job(filepath: str) -> None:
+    """Create a queued analysis job for the saved snapshot."""
+    try:
+        with SessionLocal() as db:
+            job = AnalysisJob(
+                image_path=filepath,
+                status="queued",
+                created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            logger.info(f"Enqueued analysis job id={job.id} for {filepath}")
+    except Exception:
+        # Snapshot writing already succeeded, so only log DB enqueue failures.
+        logger.exception(f"Failed to enqueue analysis job for {filepath}")
+
+
 def capture_frame_on_roi_entry(
     frame, results_motorcycle, roi_points, has_no_helmet: bool
 ) -> bool:
@@ -239,7 +241,7 @@ def capture_frame_on_roi_entry(
     # Ensure snapshots directory exists
     os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
-    for i, bbox in enumerate(results_motorcycle.boxes.xyxy):
+    for bbox in results_motorcycle.boxes.xyxy:
         bbox_np = bbox.cpu().numpy()
 
         # Check if motorcycle is in CENTER of ROI (not just inside ROI)
@@ -263,28 +265,39 @@ def capture_frame_on_roi_entry(
                 # Save cropped frame (always try to save snapshot file first)
                 cv2.imwrite(filepath, cropped_frame)
 
-                # Enqueue analysis job in DB so worker will pick it up.
-                # Use context-managed session and clearer logging on failure.
-                try:
-                    with SessionLocal() as db:
-                        job = AnalysisJob(
-                            image_path=filepath,
-                            status="queued",
-                            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        )
-                        db.add(job)
-                        db.commit()
-                        db.refresh(job)
-                        logger.info(f"Enqueued analysis job id={job.id} for {filepath}")
-                except Exception:
-                    # Log full exception (stack trace) so debugging is easier.
-                    logger.exception(f"Failed to enqueue analysis job for {filepath}")
-                    # Note: we deliberately do NOT re-raise here because
-                    # snapshot saving succeeded and we don't want a DB
-                    # enqueue failure to interrupt the capture loop.
+                enqueue_analysis_job(filepath)
                 return True
 
     return False
+
+
+def create_video_capture(video_source):
+    """Create a capture object with best-effort FFmpeg timeout options."""
+    if isinstance(video_source, int):
+        # Webcam sources should use OpenCV's default backend selection.
+        cap = cv2.VideoCapture(video_source)
+    else:
+        # RTSP/file sources try FFmpeg first, then fallback to default backend.
+        try:
+            cap = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)
+        except Exception:
+            logger.exception(
+                "FFmpeg backend initialization failed. Falling back to default backend."
+            )
+            cap = cv2.VideoCapture(video_source)
+
+    # Best-effort: these props are backend/version dependent and may raise.
+    try:
+        if hasattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC"):
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, FFMPEG_OPEN_TIMEOUT_MS)
+        if hasattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC"):
+            cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, FFMPEG_READ_TIMEOUT_MS)
+    except Exception:
+        logger.debug(
+            "Timeout property configuration is not supported for this backend."
+        )
+
+    return cap
 
 
 async def generate_frames():
@@ -295,57 +308,101 @@ async def generate_frames():
         config.model_settings.motorcycle_model_path,
     )
     visualizer = DetectionVisualizer()
-    cap = cv2.VideoCapture(
+    video_source = (
         config.application_settings.webcam_id
         if config.application_settings.use_webcam
         else config.application_settings.video_path
     )
-    if not cap.isOpened():
-        logger.error(VIDEO_SOURCE_ERROR)
-        raise ValueError(VIDEO_SOURCE_ERROR)
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    cap = None
+    try:
+        while True:
+            try:
+                cap = create_video_capture(video_source)
+            except Exception:
+                logger.exception(
+                    f"Failed to initialize video capture for source: {video_source}. Retrying..."
+                )
+                cap = None
+                await asyncio.sleep(STREAM_RECONNECT_DELAY_SECONDS)
+                continue
 
-        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-        results_helmet, results_motorcycle = await asyncio.to_thread(
-            detects.detect,
-            frame,
-            config.model_settings.helmet_conf_threshold,
-            config.model_settings.motorcycle_conf_threshold,
-        )
+            if not cap.isOpened():
+                logger.warning(f"{VIDEO_SOURCE_ERROR}: {video_source}. Retrying...")
+                cap.release()
+                cap = None
+                await asyncio.sleep(STREAM_RECONNECT_DELAY_SECONDS)
+                continue
 
-        # เลือก ROI ตาม input source (webcam หรือ video)
-        roi_points = config.detection_visualizer.get_roi_points(
-            config.application_settings.use_webcam
-        )
+            read_failures = 0
+            while True:
+                ret, frame = await asyncio.to_thread(cap.read)
+                if not ret or frame is None:
+                    read_failures += 1
+                    if read_failures >= READ_FAILURE_THRESHOLD:
+                        logger.warning(
+                            "Stream read timeout/failure detected. Reconnecting capture..."
+                        )
+                        break
+                    await asyncio.sleep(READ_RETRY_DELAY_SECONDS)
+                    continue
 
-        # ใช้ asyncio.to_thread เพื่อไม่ block event loop
-        frame, has_no_helmet = await asyncio.to_thread(
-            visualizer.draw_detections,
-            frame,
-            results_helmet,
-            results_motorcycle,
-            roi_points,
-        )
+                read_failures = 0
 
-        # Capture frame when new motorcycle enters ROI (non-blocking)
-        await asyncio.to_thread(
-            capture_frame_on_roi_entry,
-            frame,
-            results_motorcycle,
-            roi_points,
-            has_no_helmet,
-        )
+                try:
+                    # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+                    results_helmet, results_motorcycle = await asyncio.to_thread(
+                        detects.detect,
+                        frame,
+                        config.model_settings.helmet_conf_threshold,
+                        config.model_settings.motorcycle_conf_threshold,
+                    )
 
-        # encode frame as jpeg
-        ret, buffer = cv2.imencode(".jpg", frame)
-        frame_bytes = buffer.tobytes()
-        yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                    # เลือก ROI ตาม input source (webcam หรือ video)
+                    roi_points = config.detection_visualizer.get_roi_points(
+                        config.application_settings.use_webcam
+                    )
 
-    cap.release()
+                    # ใช้ asyncio.to_thread เพื่อไม่ block event loop
+                    frame, has_no_helmet = await asyncio.to_thread(
+                        visualizer.draw_detections,
+                        frame,
+                        results_helmet,
+                        results_motorcycle,
+                        roi_points,
+                    )
+
+                    # Capture frame when new motorcycle enters ROI (non-blocking)
+                    await asyncio.to_thread(
+                        capture_frame_on_roi_entry,
+                        frame,
+                        results_motorcycle,
+                        roi_points,
+                        has_no_helmet,
+                    )
+
+                    # encode frame as jpeg
+                    ret, buffer = cv2.imencode(".jpg", frame)
+                    if not ret:
+                        continue
+
+                    frame_bytes = buffer.tobytes()
+                    yield (
+                        b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+                        + frame_bytes
+                        + b"\r\n"
+                    )
+                except Exception:
+                    logger.exception("Frame processing failed; continuing stream loop.")
+                    await asyncio.sleep(READ_RETRY_DELAY_SECONDS)
+                    continue
+
+            cap.release()
+            cap = None
+            await asyncio.sleep(STREAM_RECONNECT_DELAY_SECONDS)
+    finally:
+        if cap is not None:
+            cap.release()
 
 
 @router.get("/detect", status_code=status.HTTP_200_OK)
