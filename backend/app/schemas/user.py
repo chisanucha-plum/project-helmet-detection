@@ -6,44 +6,58 @@ from pydantic import BaseModel, EmailStr, model_validator
 
 
 class PasswordResetRequest(BaseModel):
+    """Schema for requesting a password reset link by email."""
+
     email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
+    """Schema for confirming a password reset request using a token."""
+
     token: str
     new_password: str
     confirm_password: str
 
     @model_validator(mode="after")
-    def check_passwords_match(self):
+    def check_passwords_match(self) -> "PasswordResetConfirm":
+        """Verify that the new password and confirmation password match."""
         if self.new_password != self.confirm_password:
             raise ValueError("Passwords do not match")
         return self
 
 
 class UserCreate(BaseModel):
+    """Schema for creating a new user account."""
+
     email: EmailStr
     password: str
     confirm_password: str
 
     @model_validator(mode="after")
-    def check_passwords_match(self):
+    def check_passwords_match(self) -> "UserCreate":
+        """Verify that the password and confirmation password match."""
         if self.password != self.confirm_password:
             raise ValueError("Passwords do not match")
         return self
 
 
 class UserLogin(BaseModel):
+    """Schema for user login credentials."""
+
     email: EmailStr
     password: str
 
 
 class Token(BaseModel):
+    """Schema for returning JWT access and refresh tokens."""
+
     access_token: str
     refresh_token: str
 
 
 class AuthUserSnapshot(BaseModel):
+    """Detailed snapshot of authenticated user details returned on login."""
+
     id: str
     username: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -52,10 +66,14 @@ class AuthUserSnapshot(BaseModel):
 
 
 class LoginResponse(Token):
+    """Schema representing the successful authentication response containing tokens and user snapshot."""
+
     user: AuthUserSnapshot
 
 
 class UserResponse(BaseModel):
+    """Schema for user details retrieved from the system."""
+
     id: str
     username: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -66,48 +84,8 @@ class UserResponse(BaseModel):
 
 
 class UserRole(str, Enum):
+    """Enumeration of available application security roles."""
+
     ADMIN = "admin"
     SECURITY = "security"
 
-
-class RolePermissions:
-    ROLE_HIERARCHY = {
-        UserRole.ADMIN: 2,
-        UserRole.SECURITY: 1,
-    }
-
-    @classmethod
-    def has_permission(cls, user_role: str, required_role: str) -> bool:
-        """Check if user role has permission for required role"""
-        user_level = cls.ROLE_HIERARCHY.get(user_role, 0)
-        required_level = cls.ROLE_HIERARCHY.get(required_role, 0)
-        return user_level >= required_level
-
-
-class ChatLogCreate(BaseModel):
-    message_id: Optional[str]
-    user_id: str
-    conversation_id: str
-    created_at: datetime
-    prompt_token: Optional[int] = 0
-    completion_token: Optional[int] = 0
-    total_token: Optional[int] = 0
-    price_usd: Optional[float] = 0.0
-    latency: Optional[float] = 0.0
-
-
-class ChatLogResponse(BaseModel):
-    message_id: Optional[str]
-    user_id: str
-    conversation_id: Optional[str]
-    created_at: datetime
-    prompt_tokens: Optional[int]
-    completion_tokens: Optional[int]
-    total_tokens: Optional[int]
-    price_usd: Optional[float]
-    latency: Optional[float]
-
-
-class Total(BaseModel):
-    total: int
-    items: list[ChatLogResponse]

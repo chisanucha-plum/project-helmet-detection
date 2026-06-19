@@ -1,79 +1,35 @@
 {
-  "detection_visualizer": {
-    "colors": {
-      "motorcycle": [
-        203,
-        192,
-        255
-      ],
-      "helmet_on": [
-        0,
-        255,
-        0
-      ],
-      "helmet_off": [
-        0,
-        0,
-        255
-      ],
-      "roi": [
-        255,
-        0,
-        0
-      ]
-    },
-    "motorcycle_validation": {
-      "min_width": 50,
-      "min_height": 40
-    },
-    "timestamp_settings": {
-      "font": 0,
-      "scale": 1.0,
-      "color": [
-        255,
-        255,
-        255
-      ],
-      "thickness": 2
-    },
-    "detection_settings": {
-      "font": 0,
-      "scale": 0.5,
-      "thickness": 2
-    },
-    "roi_points_video": [[26,20],[32,1240],[2100,1240],[2100,20]],
-    "roi_points_webcam": [[26,20],[32,1240],[2100,1240],[2100,20]]
-  },
   "model_settings": {
+    "moto_model_path": "yolov8n.pt",
     "helmet_model_path": "train\\epoch250.pt",
-    "motorcycle_model_path": "train\\yolov8n.pt",
     "helmet_conf_threshold": 0.50,
-    "motorcycle_conf_threshold": 0.70,
-    "helmet_detection_interval": 50
+    "jpeg_quality": 50
   },
   "application_settings": {
     "video_path": "rtsp://Project:12341234@172.20.10.2:554/stream1",
-    "use_webcam": false,
+    "use_webcam": true,
     "webcam_id": 0
   },
-  "gemeni": {
-    "model": "gemini-2.5-flash-lite",
-    "api_key_env": "GEMINI_API_KEY"
+  "detection": {
+    "pad_filter": 80,
+    "helmet_detect_confidence": 0.20,
+    "helmet_detect_imgsz": 1280,
+    "motorcycle_confidence": 0.5,
+    "line_position_percent": 0.5
   },
-   "key": {
-        "secret_key": "-",
-        "algorithm": "HS256",
-        "access_token_minutes": 60
-    },
-    "refresh_token_cookie": {
-        "key": "refresh_token",
-        "value": "_nexgpt_refresh_token",
-        "httponly": false,
-        "secure": false,
-        "samesite": "lax",
-        "max_age": 2592000,
-        "path": "/",
-        "domain": null
-    }
-
+  "key": {
+    "secret_key": "-",
+    "algorithm": "HS256",
+    "access_token_minutes": 60
+  },
+  "refresh_token_cookie": {
+    "key": "refresh_token",
+    "value": "_nexgpt_refresh_token",
+    "httponly": false,
+    "secure": false,
+    "samesite": "lax",
+    "max_age": 2592000,
+    "path": "/",
+    "domain": null
+  }
 }

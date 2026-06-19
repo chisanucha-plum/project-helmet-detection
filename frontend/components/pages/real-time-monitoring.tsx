@@ -3,10 +3,23 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, BikeIcon, Camera, Car, CheckCircle, Clock, Eye, EyeOff, Users, Maximize, Minimize } from "lucide-react"
-import React, { useEffect, useState, useCallback, useRef } from "react"
-
-// We fetch real detection history from the backend instead of using mocks
+import {
+  AlertTriangle,
+  BikeIcon,
+  Camera,
+  CheckCircle,
+  Clock,
+  Eye,
+  EyeOff,
+  Users,
+  Maximize,
+  Minimize,
+  AlertCircle,
+  RotateCw,
+} from "lucide-react"
+import React, { useEffect, useState, useCallback } from "react"
+import { useRealTimeDetections } from "@/hooks/useRealTimeDetections"
+import { getStreamUrl } from "@/services/helmet-detection.service"
 
 // Small clock component that updates every second. Kept isolated so the parent
 // RealTimeMonitoring component does not re-render every tick.
@@ -25,30 +38,20 @@ function NowClock() {
     return <span suppressHydrationWarning>--:--:--</span>
   }
 
-  return <>{now.toLocaleTimeString('th-TH')}</>
-}
-
-interface DetectionResult {
-  id: string
-  timestamp: string
-  camera: string
-  licensePlate: string
-  helmetStatus: "wearing" | "not-wearing"
-  passengerCount: number
-  violations: string
-  // confidence: number
-  imageUrl?: string
+  return <>{now.toLocaleTimeString("th-TH")}</>
 }
 
 export function RealTimeMonitoring() {
-  const [detections, setDetections] = useState<DetectionResult[]>([])
-  const [isRecording, setIsRecording] = useState(true)
+  const { detections, isLoading, error, isRecording, setIsRecording } =
+    useRealTimeDetections()
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
 
-  // Handle fullscreen functionality
   // Make toggleFullscreen stable so it doesn't change every render
   const toggleFullscreen = useCallback(() => {
-    const containerElement = document.getElementById('video-container') as HTMLDivElement | null
+    const containerElement = document.getElementById(
+      "video-container"
+    ) as HTMLDivElement | null
     if (!containerElement) return
 
     if (!document.fullscreenElement) {
@@ -68,20 +71,18 @@ export function RealTimeMonitoring() {
     }
   }, [])
 
-  // Listen for fullscreen changes and keyboard shortcuts. We avoid closing over
-  // changing state (like isFullscreen or mjpegUrl) by querying the DOM/document
-  // directly when handling keys.
+  // Listen for fullscreen changes and keyboard shortcuts
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
     }
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
-    document.addEventListener('msfullscreenchange', handleFullscreenChange)
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+    document.addEventListener("msfullscreenchange", handleFullscreenChange)
 
     // Add CSS for fullscreen
-    const style = document.createElement('style')
+    const style = document.createElement("style")
     style.textContent = `
       #video-container:fullscreen {
         background: black;
@@ -104,9 +105,9 @@ export function RealTimeMonitoring() {
     `
     document.head.appendChild(style)
 
-    // Handle keyboard shortcuts without reading stale closures
+    // Handle keyboard shortcuts
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (document.fullscreenElement) {
           if (document.exitFullscreen) {
             document.exitFullscreen()
@@ -115,10 +116,9 @@ export function RealTimeMonitoring() {
           }
         }
       }
-      if (event.key.toLowerCase() === 'f') {
-        // If the MJPEG element exists, toggle fullscreen on its container
-        const mjpegEl = document.getElementById('mjpeg-stream')
-        const container = document.getElementById('video-container')
+      if (event.key.toLowerCase() === "f") {
+        const mjpegEl = document.getElementById("mjpeg-stream")
+        const container = document.getElementById("video-container")
         if (mjpegEl && container && !document.fullscreenElement) {
           if ((container as any).requestFullscreen) {
             (container as any).requestFullscreen()
@@ -127,181 +127,82 @@ export function RealTimeMonitoring() {
       }
     }
 
-    document.addEventListener('keydown', handleKeyPress)
+    document.addEventListener("keydown", handleKeyPress)
 
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
-      document.removeEventListener('msfullscreenchange', handleFullscreenChange)
-      document.removeEventListener('keydown', handleKeyPress)
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange)
+      document.removeEventListener("msfullscreenchange", handleFullscreenChange)
+      document.removeEventListener("keydown", handleKeyPress)
       document.head.removeChild(style)
     }
   }, [])
 
-  // NOTE: we move the per-second clock into a small component below so the
-  // whole page doesn't re-render every second.
-
-  // Show MJPEG stream by setting the image src. Use env var if provided; otherwise use relative path.
-  const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const secondaryVideoRef = useRef<HTMLVideoElement | null>(null)
-  const [secondaryCameraError, setSecondaryCameraError] = useState<string | null>(null)
-  const [secondaryCameraReady, setSecondaryCameraReady] = useState(false)
-
-  // Poll backend for history records and map them to DetectionResult
+  // Update stream URL when recording state changes
   useEffect(() => {
-    let mounted = true
-    const controller = new AbortController()
-    const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-
-    const mapHistoryToDetection = (h: any): DetectionResult => ({
-      id: h.id ?? `id_${Math.random().toString(36).slice(2, 9)}`,
-      timestamp: h.timestamp ?? new Date().toLocaleString('th-TH'),
-      camera: 'กล้องหลัก',
-      licensePlate: '6กฮ-4422',
-      helmetStatus: h.helmet_status === true ? 'wearing' : 'not-wearing',
-      violations: h.violations === undefined ? 'ไม่มี' : h.violations,
-      passengerCount: typeof h.passenger_count === 'number' ? h.passenger_count : 1,
-      // Prefer explicit image path from backend; otherwise try inferred snapshot URL
-      imageUrl: (() => {
-        if (h.image_path) {
-          const parts = String(h.image_path).split(/[/\\]/)
-          const name = parts.pop() ?? ''
-          return `${base}/snapshots/${encodeURIComponent(name)}`
-        }
-        if (h.id) return `${base}/snapshots/${encodeURIComponent(String(h.id) + '.jpg')}`
-        return undefined
-      })(),
-    })
-
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch(`${base}/helmet/history?limit=20`, { signal: controller.signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        if (!mounted) return
-        const items = Array.isArray(data) ? data.map(mapHistoryToDetection) : []
-        setDetections(items)
-      } catch (e) {
-        // ignore abort errors
-        if ((e as any).name === 'AbortError') return
-        console.warn('Failed to fetch history:', e)
-      }
-    }
-
-    fetchHistory()
-    const t = setInterval(fetchHistory, 5000)
-    return () => {
-      mounted = false
-      controller.abort()
-      clearInterval(t)
-    }
-  }, [])
-
-  useEffect(() => {
-    
-    // New simple approach: use <img> with MJPEG URL
-    const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-    const url = `${base}/helmet/detect`
-    console.log('MJPEG Stream URL:', url)
-    if (isRecording) setMjpegUrl(url)
-    else setMjpegUrl(undefined)
-  }, [isRecording])
-
-  // Secondary camera: use notebook webcam via browser API.
-  useEffect(() => {
-    let stream: MediaStream | null = null
-    let cancelled = false
-
-    const startSecondaryCamera = async () => {
-      if (!isRecording) {
-        setSecondaryCameraReady(false)
-        setSecondaryCameraError(null)
-        return
-      }
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setSecondaryCameraError('เบราว์เซอร์ไม่รองรับการเปิดกล้อง')
-        setSecondaryCameraReady(false)
-        return
-      }
-
-      try {
-        setSecondaryCameraError(null)
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user',
-          },
-          audio: false,
-        })
-
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop())
-          return
-        }
-
-        if (secondaryVideoRef.current) {
-          secondaryVideoRef.current.srcObject = stream
-          await secondaryVideoRef.current.play().catch(() => undefined)
-          const hasVideoMeta =
-            secondaryVideoRef.current.videoWidth > 0 &&
-            secondaryVideoRef.current.videoHeight > 0
-          if (hasVideoMeta) {
-            setSecondaryCameraReady(true)
-          } else {
-            secondaryVideoRef.current.onloadedmetadata = () => {
-              setSecondaryCameraReady(true)
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to open secondary camera:', error)
-        setSecondaryCameraError('ไม่สามารถเปิดกล้องโน้ตบุ๊กได้ (ตรวจสิทธิ์กล้อง/กล้องถูกใช้งานอยู่)')
-        setSecondaryCameraReady(false)
-      }
-    }
-
-    startSecondaryCamera()
-
-    return () => {
-      cancelled = true
-      if (secondaryVideoRef.current) {
-        secondaryVideoRef.current.srcObject = null
-      }
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop())
-      }
+    if (isRecording) {
+      setMjpegUrl(getStreamUrl())
+    } else {
+      setMjpegUrl(undefined)
     }
   }, [isRecording])
 
-  // Close lightbox on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightboxUrl(null)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
-
-  const todayViolations = detections.filter((d) => d.helmetStatus === "not-wearing").length
+  const todayViolations = detections.filter(
+    (d) => d.helmetStatus === "not-wearing"
+  ).length
   const todayTotal = detections.length
-  const complianceRate = todayTotal > 0 ? Math.round(((todayTotal - todayViolations) / todayTotal) * 100) : 0
+  const complianceRate =
+    todayTotal > 0
+      ? Math.round(((todayTotal - todayViolations) / todayTotal) * 100)
+      : 0
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-900">เกิดข้อผิดพลาด</p>
+              <p className="text-sm text-red-700">{error.message}</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="gap-2 flex-shrink-0"
+          >
+            <RotateCw className="h-4 w-4" />
+            ลองใหม่
+          </Button>
+        </div>
+      )}
+
       {/* Header with Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">การตรวจสอบแบบ Real-time</h2>
-          <p className="text-muted-foreground">อัปเดตล่าสุด: <NowClock /></p>
+          <h2 className="text-2xl font-bold text-foreground">
+            การตรวจสอบแบบ Real-time
+          </h2>
+          <p className="text-muted-foreground">
+            อัปเดตล่าสุด: <NowClock />
+          </p>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-muted-foreground">สถานะ: เชื่อมต่อแล้ว</span>
+            <div
+              className={`w-3 h-3 rounded-full ${
+                isRecording
+                  ? "bg-green-500 animate-pulse"
+                  : "bg-gray-400"
+              }`}
+            ></div>
+            <span className="text-sm text-muted-foreground">
+              สถานะ: {isRecording ? "กำลังทำงาน" : "หยุดอยู่"}
+            </span>
           </div>
 
           <Button
@@ -309,8 +210,13 @@ export function RealTimeMonitoring() {
             size="sm"
             onClick={() => setIsRecording(!isRecording)}
             className="gap-2"
+            disabled={isLoading}
           >
-            {isRecording ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {isRecording ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
             {isRecording ? "หยุดบันทึก" : "เริ่มบันทึก"}
           </Button>
         </div>
@@ -318,7 +224,7 @@ export function RealTimeMonitoring() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -326,7 +232,9 @@ export function RealTimeMonitoring() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">มอเตอร์ไซค์ที่ตรวจพบ</p>
-                <p className="text-2xl font-bold text-foreground">{todayTotal}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? "-" : todayTotal}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -341,7 +249,9 @@ export function RealTimeMonitoring() {
               <div>
                 <p className="text-sm text-muted-foreground">นั่งเกิน 2 คน</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {detections.filter((d) => d.passengerCount > 2).length}
+                  {isLoading
+                    ? "-"
+                    : detections.filter((d) => d.passengerCount > 2).length}
                 </p>
               </div>
             </div>
@@ -356,7 +266,9 @@ export function RealTimeMonitoring() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">การกระทำผิดวันนี้</p>
-                <p className="text-2xl font-bold text-foreground">{todayViolations}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? "-" : todayViolations}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -370,7 +282,9 @@ export function RealTimeMonitoring() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">อัตราการปฏิบัติตาม</p>
-                <p className="text-2xl font-bold text-foreground">{complianceRate}%</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? "-" : complianceRate}%
+                </p>
               </div>
             </div>
           </CardContent>
@@ -378,7 +292,9 @@ export function RealTimeMonitoring() {
       </div>
 
       {/* Video Feeds */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* Camera 1 — ใช้ 2 คอลัมน์จาก 3 */}
+        <div className="lg:col-span-2 flex flex-col">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -441,7 +357,7 @@ export function RealTimeMonitoring() {
                   <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
                     <div className="flex items-center gap-2 text-sm">
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span>Camera 1- ตรวจจับผู้ขับขี่</span>
+                      <span>Camera 1 - ตรวจจับผู้ขับขี่</span>
                     </div>
                     <Button
                       size="sm"
@@ -457,70 +373,30 @@ export function RealTimeMonitoring() {
             </div>
           </CardContent>
         </Card>
+        </div>
 
-        <Card>
+        <div className="lg:col-span-1 flex flex-col">
+        <Card className="flex flex-col flex-1">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Camera className="h-5 w-5" />
-              Camera 2 - ตรวจจับป้ายทะเบียน
-              <Badge variant="secondary" className="ml-auto">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Camera className="h-4 w-4" />
+              Camera 2 - ป้ายทะเบียน
+              <Badge variant="secondary" className="ml-auto text-xs">
                 Live
               </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div 
-              id="video-container-2"
-              className="aspect-video bg-muted rounded-lg flex items-center justify-center relative overflow-hidden group"
-            >
-              <video
-                id="secondary-webcam"
-                ref={secondaryVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity ${secondaryCameraReady ? 'opacity-100' : 'opacity-0'}`}
+          <CardContent className="flex-1 flex flex-col">
+            <div className="flex-1 bg-muted rounded-lg flex flex-col items-center justify-center min-h-0 overflow-hidden">
+              <img
+                src="/f.jpg"
+                alt="Camera 2 placeholder"
+                className="w-full h-full object-cover rounded-lg"
               />
-
-              {!secondaryCameraReady && (
-                <div className="relative z-10 text-center px-4">
-                  <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <span className="text-sm text-muted-foreground">
-                    {secondaryCameraError ?? 'กำลังเชื่อมต่อกล้องโน้ตบุ๊ก...'}
-                  </span>
-                </div>
-              )}
-              
-              {/* Recording indicator */}
-              <div className="absolute top-3 left-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-xs z-20">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                REC
-              </div>
-
-              {/* Fullscreen button */}
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const video = document.getElementById('secondary-webcam') as HTMLVideoElement | null
-                  const target = video || document.getElementById('video-container-2')
-                  if (!target) return
-                  if ((target as any).requestFullscreen) {
-                    (target as any).requestFullscreen()
-                  } else if ((target as any).webkitRequestFullscreen) {
-                    (target as any).webkitRequestFullscreen()
-                  } else if ((target as any).msRequestFullscreen) {
-                    (target as any).msRequestFullscreen()
-                  }
-                }}
-                className="absolute top-3 right-3 z-20 transition-opacity"
-                title="ดูเต็มจอ"
-              >
-                <Maximize className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Detection Results */}
@@ -533,91 +409,74 @@ export function RealTimeMonitoring() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {detections.map((detection) => (
-              <div
-                key={detection.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted rounded-lg gap-3"
-              >
-                <div className="flex items-center gap-4">
-                  {/* Thumbnail (click to open lightbox) */}
-                  {detection.imageUrl ? (
-                    <button
-                      type="button"
-                      aria-label="Open snapshot"
-                      onClick={() => setLightboxUrl(detection.imageUrl ?? null)}
-                      className="p-0 border-0 bg-transparent rounded-md overflow-hidden"
-                    >
-                      <img
-                        src={detection.imageUrl}
-                        alt="snapshot"
-                        className="w-16 h-12 object-cover rounded-md pointer-events-none"
-                      />
-                    </button>
-                  ) : (
-                    <div className="w-16 h-12 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">No Image</div>
-                  )}
-
-                  <div>
-                    <div className="text-sm text-muted-foreground">{detection.timestamp}</div>
-
-                    <div className="flex items-center gap-2 mt-1">
-                      {detection.helmetStatus === "wearing" ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
-                      )}
-                      <span
-                        className={`text-sm font-medium ${detection.helmetStatus === "wearing" ? "text-green-600" : "text-red-600"
-                          }`}
-                      >
-                        {detection.helmetStatus === "wearing" ? "สวมหมวกกันน็อค" : "ไม่สวมหมวกกันน็อค"}
-                      </span>
-                    </div>
-                  </div>
+            {isLoading && detections.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="inline-block">
+                  <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin mb-3"></div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <div className="flex items-center gap-1">
-                    <BikeIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-mono">{detection.licensePlate}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{detection.passengerCount} คน</span>
-                    {detection.passengerCount > 2 && (
-                      <Badge variant="destructive" className="ml-1 text-xs">
-                        เกินกำหนด
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* <Badge variant="outline" className="text-xs">
-                    {detection.confidence}% แม่นยำ
-                  </Badge> */}
-
-                  <span className="text-xs text-muted-foreground">{detection.camera}</span>
-                </div>
+                <p className="text-muted-foreground">กำลังโหลดข้อมูล...</p>
               </div>
-            ))}
-
-            {/* Lightbox overlay */}
-            {lightboxUrl && (
-              <button
-                type="button"
-                aria-label="Close full image"
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-0 border-0"
-                onClick={() => setLightboxUrl(null)}
-              >
-                <img src={lightboxUrl} alt="full" className="max-w-[95%] max-h-[95%] rounded" />
-              </button>
-            )}
-
-            {detections.length === 0 && (
+            ) : detections.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Camera className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>ไม่มีการตรวจจับในขณะนี้</p>
               </div>
+            ) : (
+              detections.map((detection) => (
+                <div
+                  key={detection.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted rounded-lg gap-3"
+                >
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        {detection.timestamp}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1">
+                        {detection.helmetStatus === "wearing" ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                        )}
+                        <span
+                          className={`text-sm font-medium ${
+                            detection.helmetStatus === "wearing"
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {detection.helmetStatus === "wearing"
+                            ? "สวมหมวกกันน็อค"
+                            : "ไม่สวมหมวกกันน็อค"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{detection.passengerCount} คน</span>
+                      {detection.passengerCount > 2 && (
+                        <Badge variant="destructive" className="ml-1 text-xs">
+                          เกินกำหนด
+                        </Badge>
+                      )}
+                    </div>
+
+                    {detection.violation && (
+                      <Badge variant="destructive" className="text-xs">
+                        ฝ่าฝืน
+                      </Badge>
+                    )}
+
+                    <span className="text-xs text-muted-foreground">
+                      {detection.camera}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </CardContent>
