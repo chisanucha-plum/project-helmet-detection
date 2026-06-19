@@ -1,10 +1,16 @@
 "use client"
 
 import { ErrorBoundary } from "@/components/error-boundary"
+import { getCurrentUser } from "@/app/api/auth"
 import { Header } from "@/components/header"
-import { LoadingSpinner } from "@/components/loading-spinner"
 import { Sidebar } from "@/components/sidebar"
+import {
+  getStoredAccessToken,
+  getStoredUserRole,
+  setStoredCurrentUser,
+} from "@/stores/auth-store"
 import { usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useState } from "react"
 
@@ -14,10 +20,27 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+
+  const enforceRouteAccess = (role: string | null, currentPath: string) => {
+    const isAdminOnlyPage = currentPath === "/dashboard"
+    const isSettingsPage = currentPath === "/settings"
+
+    if (isAdminOnlyPage && role !== "admin") {
+      router.replace("/not-found")
+      return false
+    }
+
+    if (isSettingsPage && role !== "admin" && role !== "security") {
+      router.replace("/not-found")
+      return false
+    }
+
+    return true
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -32,14 +55,55 @@ export function AppLayout({ children }: AppLayoutProps) {
     handleResize()
     window.addEventListener("resize", handleResize)
 
-    // Simulate initial loading
-    const timer = setTimeout(() => setIsLoading(false), 1000)
-
     return () => {
       window.removeEventListener("resize", handleResize)
-      clearTimeout(timer)
     }
   }, [])
+
+  useEffect(() => {
+    const role = getStoredUserRole()
+    enforceRouteAccess(role, pathname)
+  }, [pathname, router])
+
+  useEffect(() => {
+    if (pathname === "/") return
+
+    let cancelled = false
+
+    const syncCurrentUser = async () => {
+      const token = getStoredAccessToken()
+      if (!token) return
+
+      try {
+        const currentUser = await getCurrentUser(token)
+        if (cancelled) return
+
+        setStoredCurrentUser({
+          role: currentUser.role,
+          email: currentUser.email,
+          fullName: currentUser.full_name,
+          username: currentUser.username,
+        })
+        enforceRouteAccess(currentUser.role, pathname)
+      } catch {
+        // Keep existing local cache when sync fails (offline / expired token)
+      }
+    }
+
+    const onFocus = () => {
+      void syncCurrentUser()
+    }
+
+    void syncCurrentUser()
+    const intervalId = window.setInterval(syncCurrentUser, 15000)
+    window.addEventListener("focus", onFocus)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [pathname])
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -53,10 +117,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (isMobile) {
       setSidebarOpen(false)
     }
-  }
-
-  if (isLoading) {
-    return <LoadingSpinner />
   }
 
   if (pathname === "/") {
