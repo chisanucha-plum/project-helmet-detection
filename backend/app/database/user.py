@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -11,9 +10,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
-
-if TYPE_CHECKING:
-    pass
 
 
 class User(Base):

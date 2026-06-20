@@ -13,13 +13,6 @@ from app.models.detection import BoundingBox, DetectionRecord
 
 logger = logging.getLogger(__name__)
 
-# Detection constants
-MOTORCYCLE_CLASS_ID = 3
-HELMET_LABEL = "helmet"
-NO_HELMET_LABEL = "no-helmet"
-DEFAULT_TRACKER = "bytetrack.yaml"
-DETECTION_LINE_OVERLAY_ALPHA = 0.3
-
 
 class DetectionService:
     """Performs two-stage detection: motorcycle tracking and helmet analysis.
@@ -134,8 +127,8 @@ class DetectionService:
                 frame,
                 conf=conf,
                 persist=True,
-                tracker=DEFAULT_TRACKER,
-                classes=[MOTORCYCLE_CLASS_ID],
+                tracker=self._config.tracker_name,
+                classes=[self._config.motorcycle_class_id],
                 verbose=False,
                 device=self._device,
             )[0]
@@ -239,14 +232,14 @@ class DetectionService:
                     helmet_labels.append(label)
 
                     # Draw helmet detection box with color coding
-                    color = (0, 255, 0) if label == HELMET_LABEL else (0, 0, 255)
+                    color = (0, 255, 0) if label == self._config.helmet_on_label else (0, 0, 255)
                     self._draw_box(frame, helmet_box, color, label)
 
         # Analyze helmet status
         record.passenger_count = len(helmet_labels)
         record.over_capacity = record.passenger_count > 2
         record.helmet_status = (
-            all(l == HELMET_LABEL for l in helmet_labels) if helmet_labels else False
+            all(l == self._config.helmet_on_label for l in helmet_labels) if helmet_labels else False
         )
         record.violation = len(helmet_labels) > 0 and not record.helmet_status
 
@@ -318,9 +311,9 @@ class DetectionService:
         cv2.line(overlay, (self._line_x, 0), (self._line_x, height), (255, 0, 0), 3)
         cv2.addWeighted(
             overlay,
-            DETECTION_LINE_OVERLAY_ALPHA,
+            self._config.line_overlay_alpha,
             frame,
-            1 - DETECTION_LINE_OVERLAY_ALPHA,
+            1 - self._config.line_overlay_alpha,
             0,
             frame,
         )

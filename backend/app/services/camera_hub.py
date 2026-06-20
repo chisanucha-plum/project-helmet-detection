@@ -12,6 +12,7 @@ from app.database.database import SessionLocal
 from app.database.history_status import HistoryStatus
 from app.models.detection import DetectionRecord
 from app.services.detect import DetectionService
+from app.services.frame_storage import frame_storage
 
 logger = logging.getLogger(__name__)
 
@@ -110,16 +111,17 @@ class CameraHub:
         for q in list(self._frame_subs):
             self._loop.call_soon_threadsafe(_put, q, data)
 
-    def _push_detections(self, records: list[DetectionRecord]) -> None:
+    def _push_detections(self, records: list[DetectionRecord], frame: any = None) -> None:
         """Push detection records to all subscribers and persist to database.
 
         Args:
             records: List of detection records to broadcast and save
+            frame: OpenCV frame (optional) to save as snapshot
         """
         if self._loop is None:
             return
 
-        self._save_to_db(records)
+        self._save_to_db(records, frame)
         payload = json.dumps([r.to_dict() for r in records], ensure_ascii=False)
 
         def _put(q: asyncio.Queue[str], p: str) -> None:
@@ -134,8 +136,13 @@ class CameraHub:
 
     # ── persistence ──────────────────────────────────────────────────────────
 
-    def _save_to_db(self, records: list[DetectionRecord]) -> None:
-        """Persist detection records to history_status table."""
+    def _save_to_db(self, records: list[DetectionRecord], frame: any = None) -> None:
+        """Persist detection records to history_status table with frame.
+        
+        Args:
+            records: List of detection records to save
+            frame: OpenCV frame (optional) for saving snapshot
+        """
         try:
             with SessionLocal() as db:
                 for r in records:
@@ -143,6 +150,16 @@ class CameraHub:
                         f"trk_{r.motorcycle_track_id}_"
                         f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
                     )
+                    
+                    # Save frame snapshot if provided (before storing in DB)
+                    frame_path = None
+                    if frame is not None:
+                        frame_path = frame_storage.save_frame(
+                            frame, r.motorcycle_track_id, r.violation
+                        )
+                        # Update record with frame_path
+                        r.frame_path = frame_path
+                    
                     db.add(
                         HistoryStatus(
                             id=record_id,
@@ -152,6 +169,7 @@ class CameraHub:
                             over_capacity=r.over_capacity,
                             violation=r.violation,
                             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            frame_path=frame_path,
                         )
                     )
                 db.commit()
@@ -193,7 +211,10 @@ class CameraHub:
         if app.use_webcam:
             # DirectShow avoids MSMF grab errors on Windows
             return cv2.VideoCapture(app.webcam_id, cv2.CAP_DSHOW)
-        return cv2.VideoCapture(app.video_path)
+        
+        # Convert video_path to string to handle Path objects
+        video_path = str(Path(app.video_path))
+        return cv2.VideoCapture(video_path)
 
     def _run(self) -> None:
         """Background thread loop for continuous video capture and detection.
@@ -222,13 +243,24 @@ class CameraHub:
             else config.application_settings.video_path
         )
         logger.info(f"Started capturing video frames: {source_desc}")
+        
+        # Log video properties for debugging
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        logger.info(f"Video properties - FPS: {fps}, Total Frames: {frame_count}")
 
         try:
+            frame_count_read = 0
             while not self._stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning("Failed to read frame from video source")
-                    break
+                    logger.warning(f"Video loop complete (read {frame_count_read} frames), restarting...")
+                    # Restart video from beginning
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    service.reset_tracks()
+                    continue
+                
+                frame_count_read += 1
 
                 try:
                     annotated, new_records = service.detect_and_track(
@@ -243,7 +275,7 @@ class CameraHub:
                         self._push_frame(buf.tobytes())
 
                     if new_records:
-                        self._push_detections(new_records)
+                        self._push_detections(new_records, annotated)
                 except Exception as e:
                     logger.error(f"Error processing frame: {e}", exc_info=True)
                     continue
