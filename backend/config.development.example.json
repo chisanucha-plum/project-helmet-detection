@@ -1,0 +1,40 @@
+{
+  "model_settings": {
+    "moto_model_path": "train/yolov8n.pt",
+    "helmet_model_path": "train/epoch250.pt",
+    "helmet_conf_threshold": 0.50,
+    "jpeg_quality": 50
+  },
+  "detection": {
+    "helmet_detect_imgsz": 640,
+    "helmet_detect_confidence": 0.20,
+    "motorcycle_confidence": 0.5,
+    "pad_filter": 80,
+    "line_position_percent": 0.5,
+    "helmet_on_label": "helmet on",
+    "helmet_off_label": "helmet off",
+    "motorcycle_class_id": 3,
+    "tracker_name": "bytetrack.yaml",
+    "line_overlay_alpha": 0.3
+  },
+  "application_settings": {
+    "video_path": "src/case/case_03.mp4",
+    "use_webcam": false,
+    "webcam_id": 0
+  },
+  "key": {
+    "secret_key": "your-secret-key-here",
+    "algorithm": "HS256",
+    "access_token_minutes": 3600
+  },
+  "refresh_token_cookie": {
+    "key": "refresh_token",
+    "value": "_nexgpt_refresh_token",
+    "httponly": false,
+    "secure": false,
+    "samesite": "lax",
+    "max_age": 2592000,
+    "path": "/",
+    "domain": null
+  }
+}

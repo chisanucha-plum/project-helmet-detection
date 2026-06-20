@@ -57,6 +57,23 @@ export async function getCurrentUser(accessToken: string): Promise<CurrentUserRe
     return (await res.json()) as CurrentUserResponse
 }
 
+export async function refreshAccessToken(): Promise<{ access_token: string; refresh_token: string }> {
+    const res = await fetch(`${API_BASE_URL}/user/refresh_token`, {
+        method: "POST",
+        credentials: "include", // ส่ง cookies (refresh_token)
+        headers: {
+            "Content-Type": "application/json",
+        },
+    })
+
+    if (!res.ok) {
+        const message = await safeReadErrorMessage(res)
+        throw new Error(message || "Failed to refresh token")
+    }
+
+    return (await res.json()) as { access_token: string; refresh_token: string }
+}
+
 async function safeReadErrorMessage(res: Response): Promise<string | null> {
     try {
         const data = (await res.json()) as { detail?: string }

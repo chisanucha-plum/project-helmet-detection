@@ -1,47 +1,22 @@
 from typing import Optional
-
 from pydantic import BaseModel
 
 
-class HelmetDetectionResponse(BaseModel):
-    """Response model for helmet detection"""
+class HistoryStatusResponse(BaseModel):
+    """API response for a single detection history record.
 
-    id: int
-    helmet_detected: bool
-    motorcycle_detected: bool
-    no_helmet_in_roi: bool
-    timestamp: str
-    message: Optional[str] = None
+    Contains the detection results of a motorcycle that crossed the
+    detection line, including helmet status and passenger information.
+    """
+
+    id: str  # Unique record ID
+    track_id: Optional[int] = None  # Motorcycle track ID
+    helmet_status: Optional[bool] = None  # True if helmet detected
+    passenger_count: Optional[int] = None  # Number of passengers
+    over_capacity: Optional[bool] = None  # True if >2 passengers
+    violation: Optional[bool] = None  # True if helmet missing
+    timestamp: Optional[str] = None  # Detection timestamp
+    frame_path: Optional[str] = None  # Path to saved frame image
 
     class Config:
         from_attributes = True
-
-
-class DetectionStatsResponse(BaseModel):
-    """Response model for detection statistics"""
-
-    total_detections: int
-    violations: int
-    helmet_detected: int
-    motorcycle_detected: int
-    compliance_rate: float
-    date_filter: Optional[str] = None
-
-
-class ViolationDetail(BaseModel):
-    """Model for violation details"""
-
-    detection_type: str
-    confidence: float
-    bbox: list
-    timestamp: str
-
-
-class HistoryStatusResponse(BaseModel):
-    """Response model for history status with violation details"""
-
-    id: str
-    helmet_status: Optional[bool]
-    passenger_count: Optional[int]
-    violations: Optional[list] = None
-    timestamp: Optional[str]

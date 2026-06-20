@@ -1,0 +1,111 @@
+"""Frame storage service for saving detected frames as images."""
+
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import cv2
+
+logger = logging.getLogger(__name__)
+
+
+class FrameStorage:
+    """Save frames to disk with organized directory structure."""
+
+    def __init__(self, base_dir: str = "frames_storage"):
+        """Initialize frame storage.
+        
+        Args:
+            base_dir: Base directory for storing frames (default: frames_storage)
+        """
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(exist_ok=True)
+        logger.info(f"Frame storage initialized at {self.base_dir}")
+
+    def save_frame(
+        self,
+        frame: any,
+        track_id: int,
+        violation: bool,
+        quality: int = 80,
+    ) -> Optional[str]:
+        """Save frame to disk.
+        
+        Args:
+            frame: OpenCV frame (numpy array)
+            track_id: Motorcycle track ID
+            violation: Whether helmet violation detected
+            quality: JPEG quality (0-100)
+            
+        Returns:
+            Relative path to saved image, or None if failed
+        """
+        try:
+            # Create directory: frames_storage/YYYY-MM-DD
+            date_dir = self.base_dir / datetime.now().strftime("%Y-%m-%d")
+            date_dir.mkdir(exist_ok=True)
+
+            # Filename: track_{id}_{violation}_{timestamp}.jpg
+            status = "violation" if violation else "normal"
+            timestamp = datetime.now().strftime("%H%M%S%f")[:-3]  # HHmmssSSS
+            filename = f"track_{track_id}_{status}_{timestamp}.jpg"
+            filepath = date_dir / filename
+
+            # Save frame
+            ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
+            if ok:
+                filepath.write_bytes(buf.tobytes())
+                # Use forward slash for URL compatibility
+                rel_path = str(filepath.relative_to(self.base_dir)).replace("\\", "/")
+                logger.info(f"Frame saved: {rel_path}")
+                return rel_path
+            else:
+                logger.warning("Failed to encode frame to JPEG")
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to save frame: {e}", exc_info=True)
+            return None
+
+    def get_frame_url(self, relative_path: str) -> str:
+        """Convert relative path to API URL.
+        
+        Args:
+            relative_path: Relative path from frame storage
+            
+        Returns:
+            Full API endpoint URL
+        """
+        return f"/helmet/frame/{relative_path}"
+
+    def cleanup_old_frames(self, days: int = 7) -> int:
+        """Remove frames older than N days.
+        
+        Args:
+            days: Number of days to keep
+            
+        Returns:
+            Number of files deleted
+        """
+        from datetime import timedelta
+
+        cutoff_date = datetime.now() - timedelta(days=days)
+        deleted_count = 0
+
+        try:
+            for filepath in self.base_dir.rglob("*.jpg"):
+                if datetime.fromtimestamp(filepath.stat().st_mtime) < cutoff_date:
+                    filepath.unlink()
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                logger.info(f"Cleaned up {deleted_count} old frames")
+        except Exception as e:
+            logger.error(f"Failed to cleanup frames: {e}")
+
+        return deleted_count
+
+
+# Module-level singleton
+frame_storage = FrameStorage()

@@ -1,0 +1,58 @@
+"use client"
+
+import { Globe, Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+type Language = "en" | "th"
+
+interface LanguageSelectorProps {
+  currentLanguage: Language
+  onLanguageChange: (lang: Language) => void
+}
+
+const languages: { code: Language; name: string; flag: string }[] = [
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "th", name: "ไทย", flag: "🇹🇭" },
+]
+
+export function LanguageSelector({ currentLanguage, onLanguageChange }: LanguageSelectorProps) {
+  const current = languages.find((l) => l.code === currentLanguage)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <Globe className="h-4 w-4" />
+          <span className="text-xs sm:text-sm">{current?.name}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        {languages.map((lang) => (
+          <DropdownMenuItem
+            key={lang.code}
+            onClick={() => onLanguageChange(lang.code)}
+            className="flex items-center justify-between gap-2 cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{lang.flag}</span>
+              <span className="text-sm">{lang.name}</span>
+            </div>
+            {currentLanguage === lang.code && (
+              <Check className="h-4 w-4 text-green-600" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

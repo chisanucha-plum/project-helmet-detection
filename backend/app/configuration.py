@@ -1,125 +1,77 @@
 import json
+import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Literal
-
 
 try:
     from dotenv import load_dotenv
 
-    load_dotenv()  # Load environment variables from .env file
+    load_dotenv()
 except ImportError:
-    pass  # dotenv not installed, skip loading .env file
+    pass
+
+logger = logging.getLogger(__name__)
+
+
+# ── Detection settings ───────────────────────────────────────────────────────
 
 
 @dataclass
-class ColorsConfig:
-    motorcycle: list[int]
-    helmet_on: list[int]
-    helmet_off: list[int]
-    roi: list[int]
+class DetectionConfig:
+    """Configuration for motorcycle and helmet detection."""
+
+    pad_filter: int
+    helmet_detect_confidence: float
+    helmet_detect_imgsz: int
+    motorcycle_confidence: float
+    line_position_percent: float
+    helmet_on_label: str
+    helmet_off_label: str
+    motorcycle_class_id: int
+    tracker_name: str
+    line_overlay_alpha: float
 
     @staticmethod
-    def from_dict(data: dict) -> "ColorsConfig":
-        return ColorsConfig(
-            motorcycle=data["motorcycle"],
-            helmet_on=data["helmet_on"],
-            helmet_off=data["helmet_off"],
-            roi=data["roi"],
+    def from_dict(data: dict) -> "DetectionConfig":
+        """Create DetectionConfig from dictionary."""
+        return DetectionConfig(
+            pad_filter=data.get("pad_filter", 80),
+            helmet_detect_confidence=data.get("helmet_detect_confidence", 0.20),
+            helmet_detect_imgsz=data.get("helmet_detect_imgsz", 640),
+            motorcycle_confidence=data.get("motorcycle_confidence", 0.5),
+            line_position_percent=data.get("line_position_percent", 0.5),
+            helmet_on_label=data.get("helmet_on_label", "helmet on"),
+            helmet_off_label=data.get("helmet_off_label", "helmet off"),
+            motorcycle_class_id=data.get("motorcycle_class_id", 3),
+            tracker_name=data.get("tracker_name", "bytetrack.yaml"),
+            line_overlay_alpha=data.get("line_overlay_alpha", 0.3),
         )
 
 
-@dataclass
-class MotorcycleValidationConfig:
-    min_width: int
-    min_height: int
-
-    @staticmethod
-    def from_dict(data: dict) -> "MotorcycleValidationConfig":
-        return MotorcycleValidationConfig(
-            min_width=data["min_width"], min_height=data["min_height"]
-        )
-
-
-@dataclass
-class TimestampSettingsConfig:
-    font: int
-    scale: float
-    color: list[int]
-    thickness: int
-
-    @staticmethod
-    def from_dict(data: dict) -> "TimestampSettingsConfig":
-        return TimestampSettingsConfig(
-            font=data["font"],
-            scale=data["scale"],
-            color=data["color"],
-            thickness=data["thickness"],
-        )
-
-
-@dataclass
-class DetectionSettingsConfig:
-    font: int
-    scale: float
-    thickness: int
-
-    @staticmethod
-    def from_dict(data: dict) -> "DetectionSettingsConfig":
-        return DetectionSettingsConfig(
-            font=data["font"], scale=data["scale"], thickness=data["thickness"]
-        )
-
-
-@dataclass
-class DetectionVisualizerConfig:
-    colors: ColorsConfig
-    motorcycle_validation: MotorcycleValidationConfig
-    timestamp_settings: TimestampSettingsConfig
-    detection_settings: DetectionSettingsConfig
-    roi_points_video: list[list[int]]
-    roi_points_webcam: list[list[int]]
-
-    @staticmethod
-    def from_dict(data: dict) -> "DetectionVisualizerConfig":
-        return DetectionVisualizerConfig(
-            colors=ColorsConfig.from_dict(data["colors"]),
-            motorcycle_validation=MotorcycleValidationConfig.from_dict(
-                data["motorcycle_validation"]
-            ),
-            timestamp_settings=TimestampSettingsConfig.from_dict(
-                data["timestamp_settings"]
-            ),
-            detection_settings=DetectionSettingsConfig.from_dict(
-                data["detection_settings"]
-            ),
-            roi_points_video=data["roi_points_video"],
-            roi_points_webcam=data["roi_points_webcam"],
-        )
-
-    def get_roi_points(self, use_webcam: bool) -> list[list[int]]:
-        """เลือก ROI points ตาม input source"""
-        return self.roi_points_webcam if use_webcam else self.roi_points_video
+# ── Model settings ───────────────────────────────────────────────────────────
 
 
 @dataclass
 class ModelSettingsConfig:
+    moto_model_path: str
     helmet_model_path: str
-    motorcycle_model_path: str
     helmet_conf_threshold: float
-    motorcycle_conf_threshold: float
-    helmet_detection_interval: int
+    jpeg_quality: int
 
     @staticmethod
     def from_dict(data: dict) -> "ModelSettingsConfig":
         return ModelSettingsConfig(
+            moto_model_path=data.get("moto_model_path", "yolov8n"),
             helmet_model_path=data["helmet_model_path"],
-            motorcycle_model_path=data["motorcycle_model_path"],
             helmet_conf_threshold=data["helmet_conf_threshold"],
-            motorcycle_conf_threshold=data["motorcycle_conf_threshold"],
-            helmet_detection_interval=data["helmet_detection_interval"],
+            jpeg_quality=data.get("jpeg_quality", 60),
         )
+
+
+# ── Application settings ─────────────────────────────────────────────────────
 
 
 @dataclass
@@ -130,11 +82,31 @@ class ApplicationSettingsConfig:
 
     @staticmethod
     def from_dict(data: dict) -> "ApplicationSettingsConfig":
+        # RTSP_VIDEO_PATH env overrides config.json and forces use_webcam=False
+        rtsp_override = os.environ.get("RTSP_VIDEO_PATH", "").strip()
+        if rtsp_override:
+            return ApplicationSettingsConfig(
+                video_path=rtsp_override,
+                use_webcam=False,
+                webcam_id=data.get("webcam_id", 0),
+            )
+
+        use_webcam_env = os.environ.get("USE_WEBCAM", "").strip().lower()
+        if use_webcam_env in ("true", "1", "yes"):
+            use_webcam = True
+        elif use_webcam_env in ("false", "0", "no"):
+            use_webcam = False
+        else:
+            use_webcam = data["use_webcam"]
+
         return ApplicationSettingsConfig(
             video_path=data["video_path"],
-            use_webcam=data["use_webcam"],
-            webcam_id=data["webcam_id"],
+            use_webcam=use_webcam,
+            webcam_id=data.get("webcam_id", 0),
         )
+
+
+# ── Database settings ────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -147,36 +119,16 @@ class PostgresConfig:
 
     @staticmethod
     def from_env() -> "PostgresConfig":
-        host = os.environ.get("DATABASE_HOST", "localhost")
-        port = int(os.environ.get("DATABASE_PORT", "5432"))
-        user = os.environ.get("DATABASE_USER", "postgres")
-        password = os.environ.get("DATABASE_PASSWORD", "password")
-        database = os.environ.get("DATABASE_NAME", "helmet_detection")
-
         return PostgresConfig(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database,
+            host=os.environ.get("DATABASE_HOST", "localhost"),
+            port=int(os.environ.get("DATABASE_PORT", "5432")),
+            user=os.environ.get("DATABASE_USER", "postgres"),
+            password=os.environ.get("DATABASE_PASSWORD", "password"),
+            database=os.environ.get("DATABASE_NAME", "helmet_detection"),
         )
 
 
-@dataclass
-class GemeniConfig:
-    model: str
-    api_key: str
-
-    @staticmethod
-    def from_dict(data: dict) -> "GemeniConfig":
-        api_key = data.get("api_key")
-        if "api_key_env" in data:
-            api_key = os.environ.get(data["api_key_env"], api_key)
-
-        return GemeniConfig(
-            model=data["model"],
-            api_key=api_key,
-        )
+# ── Auth settings ────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -192,24 +144,15 @@ class RefreshTokenCookie:
 
     @staticmethod
     def from_dict(obj: Any) -> "RefreshTokenCookie":
-        _key = str(obj.get("key"))
-        _value = str(obj.get("value"))
-        _httponly = bool(obj.get("httponly", False))
-        _secure = bool(obj.get("secure", False))
-        _samesite = str(obj.get("samesite", "lax"))
-        _max_age = int(obj.get("max_age", 2592000))
-        _path = str(obj.get("path", "/"))
-        _domain = obj.get("domain")
-
         return RefreshTokenCookie(
-            key=_key,
-            value=_value,
-            httponly=_httponly,
-            secure=_secure,
-            samesite=_samesite,
-            max_age=_max_age,
-            path=_path,
-            domain=_domain,
+            key=str(obj.get("key")),
+            value=str(obj.get("value")),
+            httponly=bool(obj.get("httponly", False)),
+            secure=bool(obj.get("secure", False)),
+            samesite=str(obj.get("samesite", "lax")),
+            max_age=int(obj.get("max_age", 2592000)),
+            path=str(obj.get("path", "/")),
+            domain=obj.get("domain"),
         )
 
 
@@ -221,48 +164,67 @@ class Key:
 
     @staticmethod
     def from_dict(obj: Any) -> "Key":
-        _secret_key = str(obj.get("secret_key"))
-        _algorithm = str(obj.get("algorithm", "HS256"))
-        _access_token_minutes = int(obj.get("access_token_minutes", 30))
         return Key(
-            secret_key=_secret_key,
-            algorithm=_algorithm,
-            access_token_minutes=_access_token_minutes,
+            secret_key=str(obj.get("secret_key")),
+            algorithm=str(obj.get("algorithm", "HS256")),
+            access_token_minutes=int(obj.get("access_token_minutes", 30)),
         )
+
+
+# ── Root config ──────────────────────────────────────────────────────────────
 
 
 @dataclass
 class Configuration:
-    detection_visualizer: DetectionVisualizerConfig
     model_settings: ModelSettingsConfig
     application_settings: ApplicationSettingsConfig
-    gemeni: GemeniConfig
     postgres: PostgresConfig
     refresh_token_cookie: RefreshTokenCookie
     key: Key
+    detection: DetectionConfig
 
     @staticmethod
     def from_dict(data: dict) -> "Configuration":
         return Configuration(
-            detection_visualizer=DetectionVisualizerConfig.from_dict(
-                data["detection_visualizer"]
-            ),
             model_settings=ModelSettingsConfig.from_dict(data["model_settings"]),
             application_settings=ApplicationSettingsConfig.from_dict(
                 data["application_settings"]
             ),
-            gemeni=GemeniConfig.from_dict(data["gemeni"]),
-            postgres=PostgresConfig.from_env(),  # อ่านจาก .env เท่านั้น
+            postgres=PostgresConfig.from_env(),
             refresh_token_cookie=RefreshTokenCookie.from_dict(
                 data["refresh_token_cookie"]
             ),
             key=Key.from_dict(data["key"]),
+            detection=DetectionConfig.from_dict(data.get("detection", {})),
         )
 
     @staticmethod
     @lru_cache
     def get_config() -> "Configuration":
+        """Load and cache application configuration from JSON file.
+
+        Determines config file based on SITE environment variable (default: development).
+        Returns cached configuration to avoid reloading.
+
+        Returns:
+            Configuration object with all settings
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            json.JSONDecodeError: If config JSON is invalid
+        """
         site = os.environ.get("SITE", "development")
-        with open(f"config.{site}.json", "r") as f:
+        config_path = Path(f"config.{site}.json")
+
+        with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
-        return Configuration.from_dict(data)
+
+        config = Configuration.from_dict(data)
+        src = config.application_settings
+        source_desc = (
+            f"webcam id={src.webcam_id}"
+            if src.use_webcam
+            else f"RTSP: {src.video_path}"
+        )
+        logger.info(f"Video source: {source_desc}")
+        return config

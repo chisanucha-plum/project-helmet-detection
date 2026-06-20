@@ -1,17 +1,17 @@
-from app.configuration import Configuration
+from typing import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.engine import Engine, URL
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from app.configuration import Configuration
 
-class Base(DeclarativeBase):
-    pass
-
-
+# Load configuration and create database connection
 config = Configuration.get_config()
 postgres_config = config.postgres
 
-DATABASE = {
+# PostgreSQL connection URL configuration
+DATABASE_CONFIG = {
     "drivername": "postgresql",
     "host": postgres_config.host,
     "port": postgres_config.port,
@@ -21,24 +21,39 @@ DATABASE = {
 }
 
 
-engine = create_engine(URL.create(**DATABASE), pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+class Base(DeclarativeBase):
+    """Declarative base for all ORM models."""
+
+    pass
 
 
-def create_deals_table(engine):
-    Base.metadata.create_all(bind=engine)
+# Create SQLAlchemy engine and session factory
+engine: Engine = create_engine(URL.create(**DATABASE_CONFIG), pool_pre_ping=True)
+SessionLocal: sessionmaker[Session] = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine
+)
 
 
-def init_database():
-    # Ensure all ORM models are imported so SQLAlchemy registers their tables
-    from app.database import analysis_job  # noqa: F401
+def init_database() -> None:
+    """Initialize database by creating all tables.
+
+    Imports all ORM models to register them with SQLAlchemy before creating tables.
+    """
     from app.database import history_status  # noqa: F401
     from app.database import user  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
+    """Provide database session as FastAPI dependency.
+
+    Yields:
+        SQLAlchemy Session for use in request handler
+
+    Raises:
+        Any exception raised by database operations
+    """
     db = SessionLocal()
     try:
         yield db

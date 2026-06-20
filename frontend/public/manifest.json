@@ -1,0 +1,17 @@
+{
+  "name": "ระบบตรวจจับการขับขี่",
+  "short_name": "Helmet Detection",
+  "description": "ระบบตรวจจับการขับขี่สำหรับมหาวิทยาลัย",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}
