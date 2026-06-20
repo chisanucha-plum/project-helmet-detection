@@ -72,6 +72,8 @@ snapshots/
 # FastAPI / Env
 .env
 uvicorn.log
+backend/frames_storage/
+frames_storage/
 
 # Frontend (React / Node)
 frontend/node_modules/
