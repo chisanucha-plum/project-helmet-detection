@@ -5,6 +5,8 @@ import { LogOut } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from 'next/navigation'
+import { useLanguage } from "@/hooks/useLanguage"
+import { LanguageSelector } from "@/components/LanguageSelector"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -14,6 +16,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: HeaderProps) {
   const router = useRouter()
+  const { language, setLang, t } = useLanguage("en")
 
   const handleLogout = () => {
     try {
@@ -21,6 +24,7 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
       localStorage.removeItem('userRole')
       localStorage.removeItem('userName')
       localStorage.removeItem('userEmail')
+      localStorage.removeItem('language')
     } catch {
       // ignore storage errors and continue logout flow
     }
@@ -50,7 +54,8 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
         </div>
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <LanguageSelector currentLanguage={language as "en" | "th"} onLanguageChange={setLang} />
         <Button
           variant="ghost"
           size="sm"
@@ -58,7 +63,7 @@ export function Header({ onMenuClick, sidebarCollapsed, isMobile = false }: Head
           className="hover:bg-gray-100 hover:text-gray-900 h-6 sm:h-7 rounded-md px-2"
         >
           <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="ml-1 text-xs hidden sm:inline">Logout</span>
+          <span className="ml-1 text-xs hidden sm:inline">{t("buttons.logout")}</span>
         </Button>
         <Popover>
           <PopoverTrigger asChild>

@@ -1,0 +1,140 @@
+{
+  "header": {
+    "title": "การตรวจสอบแบบ Real-time",
+    "lastUpdate": "อัปเดตล่าสุด:"
+  },
+  "status": {
+    "running": "กำลังทำงาน",
+    "stopped": "หยุดอยู่"
+  },
+  "buttons": {
+    "startRecording": "เริ่มบันทึก",
+    "stopRecording": "หยุดบันทึก",
+    "retry": "ลองใหม่",
+    "fullscreen": "เต็มจอ",
+    "exitFullscreen": "ออกจากเต็มจอ",
+    "logout": "ออกจากระบบ",
+    "back": "ย้อนกลับ",
+    "home": "หน้าหลัก",
+    "login": "เข้าสู่ระบบ",
+    "loginWithGoogle": "เข้าสู่ระบบด้วย Google",
+    "saveAll": "บันทึกทั้งหมด"
+  },
+  "stats": {
+    "motorcyclesDetected": "มอเตอร์ไซค์ที่ตรวจพบ",
+    "overCapacity": "นั่งเกิน 2 คน",
+    "violations": "การกระทำผิดวันนี้",
+    "complianceRate": "อัตราการปฏิบัติตาม"
+  },
+  "camera": {
+    "camera1": "Camera 1 - ตรวจจับผู้ขับขี่",
+    "camera2": "Camera 2 - ป้ายทะเบียน",
+    "liveVideoFeed": "ฟีด Live Video",
+    "live": "Live"
+  },
+  "detection": {
+    "latestResults": "ผลการตรวจจับล่าสุด",
+    "noDetections": "ไม่มีการตรวจจับในขณะนี้",
+    "loading": "กำลังโหลดข้อมูล...",
+    "timestamp": "เวลา",
+    "wearingHelmet": "สวมหมวกกันน็อค",
+    "notWearingHelmet": "ไม่สวมหมวกกันน็อค",
+    "passengers": "คน",
+    "overCapacityBadge": "เกินกำหนด",
+    "violation": "ฝ่าฝืน"
+  },
+  "errors": {
+    "errorOccurred": "เกิดข้อผิดพลาด",
+    "unknownError": "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ",
+    "pageNotFound": "ไม่พบหน้า",
+    "pageNotFoundMessage": "หน้าที่คุณต้องการไม่พบ",
+    "helpPageDev": "หน้าช่วยเหลือกำลังพัฒนา"
+  },
+  "recording": "REC",
+  "sidebar": {
+    "home": "หน้าหลัก",
+    "realtimeMonitoring": "การตรวจสอบแบบ Real-time",
+    "dashboard": "แดชบอร์ด",
+    "dashboardDesc": "สถิติและรายงาน",
+    "help": "ช่วยเหลือ",
+    "helpDesc": "คู่มือการใช้งาน",
+    "settings": "ตั้งค่า",
+    "settingsDesc": "การตั้งค่าระบบ"
+  },
+  "login": {
+    "title": "ระบบตรวจจับการขับขี่ - เทคโนโลยีพระจอมเกล้าธนบุรี",
+    "email": "อีเมล",
+    "password": "รหัสผ่าน",
+    "signIn": "เข้าสู่ระบบ",
+    "errorMessage": "ไม่สามารถเข้าสู่ระบบได้"
+  },
+  "dashboard": {
+    "title": "แดชบอร์ดสถิติ",
+    "subtitle": "ภาพรวมการตรวจจับหมวกกันน็อค - เทคโนโลยีพระจอมเกล้าธนบุรี",
+    "timeRange": "ช่วงเวลา",
+    "today": "วันนี้",
+    "yesterday": "เมื่อวาน",
+    "thisWeek": "สัปดาห์นี้",
+    "thisMonth": "เดือนนี้",
+    "chartType": "ประเภทกราฟ",
+    "hourly": "รายชั่วโมง",
+    "weekly": "รายสัปดาห์",
+    "totalViolations": "รวมการกระทำผิด",
+    "totalDetections": "รวมการตรวจจับ",
+    "averageCompliance": "ค่าเฉลี่ยการปฏิบัติตาม",
+    "excessPassengers": "ผู้โดยสารเกิน",
+    "complianceByDay": "การปฏิบัติตามตามวัน",
+    "violationTypes": "ประเภทการกระทำผิด",
+    "helmetCompliance": "การปฏิบัติตามสวมหมวก",
+    "downloadReport": "ดาวน์โหลดรายงาน"
+  },
+  "settings": {
+    "title": "ตั้งค่าระบบ",
+    "subtitle": "ปรับการแสดงผล การแจ้งเตือน และการตั้งค่าการตรวจจับตามสิทธิ์ของคุณ",
+    "userProfile": "โปรไฟล์ผู้ใช้",
+    "profileDesc": "ข้อมูลพื้นฐานและรูปแบบการใช้งานของบัญชีนี้",
+    "displayName": "ชื่อที่แสดง",
+    "email": "อีเมล",
+    "timezone": "เขตเวลา",
+    "language": "ภาษา",
+    "notifications": "การแจ้งเตือน",
+    "notificationsDesc": "ควบคุมประเภทและความถี่ในการรับแจ้งเตือน",
+    "notifyInApp": "แจ้งเตือนในระบบ",
+    "notifyInAppDesc": "แสดงแจ้งเตือนในหน้าเว็บเมื่อพบการกระทำผิดปกติ",
+    "notifyEmail": "แจ้งเตือนทางอีเมล",
+    "notifyEmailDesc": "ส่งเหตุการณ์สำคัญไปยังอีเมลที่ลงทะเบียน",
+    "notifySound": "เปิดเสียงแจ้งเตือน",
+    "notifySoundDesc": "เล่นเสียงเมื่อพบการกระทำผิด",
+    "notificationFormat": "รูปแบบแจ้งเตือน",
+    "instant": "ทันที",
+    "every5Min": "สรุปทุก 5 นาที",
+    "daily": "สรุปรายวัน",
+    "realtimeDisplay": "การแสดงผลหน้า Real-time",
+    "realtimeDisplayDesc": "ปรับการ refresh และข้อมูลที่ต้องการแสดง",
+    "recentItems": "รายการล่าสุด",
+    "refreshInterval": "ช่วงเวลารีเฟรช (วินาที)",
+    "showOnlyViolations": "แสดงเฉพาะรายการผิดกฎ",
+    "showOnlyViolationsDesc": "ซ่อนเหตุการณ์ที่ถูกต้องตามกฎจากตารางแสดงผล",
+    "adminSettings": "ตั้งค่า Admin",
+    "adminSettingsDesc": "ค่าระบบที่มีผลต่อการตรวจจับและการจัดเก็บข้อมูล",
+    "cameraSource": "แหล่งกล้องวิดีโอ",
+    "detectionThreshold": "เกณฑ์การตรวจจับ",
+    "snapshotEnabled": "เปิดการบันทึก Snapshot",
+    "snapshotEnabledDesc": "บันทึกรูปเมื่อพบการกระทำผิดเพื่อใช้ตรวจสอบย้อนหลัง",
+    "dataRetention": "เก็บข้อมูล (วัน)",
+    "saveMessage": "บันทึกการตั้งค่าเรียบร้อยแล้ว",
+    "admin": "Admin",
+    "security": "Security",
+    "user": "User",
+    "role": "บทบาท"
+  },
+  "common": {
+    "loading": "กำลังโหลด...",
+    "error": "ข้อผิดพลาด",
+    "success": "สำเร็จ",
+    "cancel": "ยกเลิก",
+    "save": "บันทึก",
+    "close": "ปิด",
+    "confirm": "ยืนยัน"
+  }
+}

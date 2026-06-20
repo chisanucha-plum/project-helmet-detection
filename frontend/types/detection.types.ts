@@ -9,6 +9,7 @@ export interface DetectionResult {
   helmetStatus: "wearing" | "not-wearing"
   passengerCount: number
   violation: boolean
+  framePath?: string  // Optional path to saved frame image
 }
 
 export interface DetectionHistoryItem {
@@ -17,6 +18,7 @@ export interface DetectionHistoryItem {
   helmet_status: boolean
   passenger_count?: number
   violation?: boolean
+  frame_path?: string  // Optional path to saved frame image
 }
 
 export interface DetectionEvent {
@@ -24,6 +26,7 @@ export interface DetectionEvent {
   helmet_status: boolean
   passenger_count?: number
   violation?: boolean
+  frame_path?: string
 }
 
 export interface UseRealTimeDetectionsReturn {

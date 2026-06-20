@@ -74,6 +74,8 @@ snapshots/
 uvicorn.log
 backend/frames_storage/
 frames_storage/
+backend/train/
+train
 
 # Configuration files (local/secrets)
 config.development.json

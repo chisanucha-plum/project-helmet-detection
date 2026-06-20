@@ -28,14 +28,22 @@ export async function fetchHelmetHistory(
 
     const data: DetectionHistoryItem[] = await response.json()
 
-    return data.map((item) => ({
+    const results: DetectionResult[] = data.map((item) => ({
       id: item.id,
       timestamp: item.timestamp ?? "",
       camera: "กล้องหลัก",
-      helmetStatus: item.helmet_status === true ? "wearing" : "not-wearing",
+      helmetStatus: (item.helmet_status === true ? "wearing" : "not-wearing") as "wearing" | "not-wearing",
       passengerCount: item.passenger_count ?? 1,
       violation: item.violation ?? false,
+      framePath: item.frame_path,
     }))
+
+    // Log first result for debugging
+    if (results.length > 0) {
+      console.debug("First detection result:", results[0])
+    }
+
+    return results
   } catch (error) {
     console.error("Error fetching helmet history:", error)
     throw error
@@ -69,6 +77,7 @@ export function subscribeToHelmetEvents(
       helmetStatus:   item.helmet_status === true ? "wearing" : "not-wearing",
       passengerCount: item.passenger_count ?? 1,
       violation:      item.violation ?? false,
+      framePath:      item.frame_path,
     }))
 
     onDetection(mapped)

@@ -85,7 +85,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           username: currentUser.username,
         })
         enforceRouteAccess(currentUser.role, pathname)
-      } catch {
+      } catch (error: unknown) {
+        // แสดง error ว่า token หมดอายุ
+        if (error instanceof Error && error.message.includes("401")) {
+          console.warn("Access token expired - please login again")
+        }
         // Keep existing local cache when sync fails (offline / expired token)
       }
     }

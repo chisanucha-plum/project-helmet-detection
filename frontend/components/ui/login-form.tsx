@@ -21,12 +21,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
+import { useLanguage } from "@/hooks/useLanguage"
+import { LanguageSelector } from "@/components/LanguageSelector"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
+  const { language, setLang } = useLanguage("en")
+  const { t } = useLanguage("en")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -61,7 +65,7 @@ export function LoginForm({
       if (err instanceof Error) {
         setError(err.message)
       } else {
-        setError("ไม่สามารถเข้าสู่ระบบได้")
+        setError(t("login.errorMessage"))
       }
     } finally {
       setLoading(false)
@@ -70,6 +74,9 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <div className="flex justify-end">
+        <LanguageSelector currentLanguage={language as "en" | "th"} onLanguageChange={setLang} />
+      </div>
       <Card>
         <CardHeader>
           <div className="flex justify-center">
@@ -77,14 +84,14 @@ export function LoginForm({
           </div>
           <CardTitle></CardTitle>
           <CardDescription className="text-center text-sm font-bold leading-none  ">
-            ระบบตรวจจับการขับขี่ - เทคโนโลยีพระจอมเกล้าธนบุรี
+            {t("login.title")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="email">{t("login.email")}</FieldLabel>
                 <Input
                   id="email"
                   type="email"
@@ -96,7 +103,7 @@ export function LoginForm({
               </Field>
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">{t("login.password")}</FieldLabel>
                 </div>
                 <Input
                   id="password"
@@ -119,7 +126,7 @@ export function LoginForm({
                 >
                   {loading ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <span>Signin</span>
+                      <span>{t("buttons.login")}</span>
                       <span className="inline-flex items-center gap-1" aria-hidden="true">
                         <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse [animation-delay:0ms]" />
                         <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 animate-pulse [animation-delay:180ms]" />
@@ -127,7 +134,7 @@ export function LoginForm({
                       </span>
                     </span>
                   ) : (
-                    "Login"
+                    t("buttons.login")
                   )}
                 </Button>
                 <Button
@@ -135,7 +142,7 @@ export function LoginForm({
                   className="bg-white text-black hover:bg-orange-600"
                   disabled={loading}
                 >
-                  Login with Google
+                  {t("buttons.loginWithGoogle")}
                 </Button>
                 <FieldDescription className="text-center">
                   {/* Don&apos;t have an account? <a href="#">Sign up</a> */}

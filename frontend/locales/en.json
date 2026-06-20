@@ -1,0 +1,140 @@
+{
+  "header": {
+    "title": "Real-time Monitoring",
+    "lastUpdate": "Last updated:"
+  },
+  "status": {
+    "running": "Running",
+    "stopped": "Stopped"
+  },
+  "buttons": {
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "retry": "Retry",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "logout": "Logout",
+    "back": "Back",
+    "home": "Home",
+    "login": "Login",
+    "loginWithGoogle": "Login with Google",
+    "saveAll": "Save All"
+  },
+  "stats": {
+    "motorcyclesDetected": "Motorcycles Detected",
+    "overCapacity": "Over Capacity",
+    "violations": "Violations Today",
+    "complianceRate": "Compliance Rate"
+  },
+  "camera": {
+    "camera1": "Camera 1 - Rider Detection",
+    "camera2": "Camera 2 - License Plate",
+    "liveVideoFeed": "Live Video Feed",
+    "live": "Live"
+  },
+  "detection": {
+    "latestResults": "Latest Detection Results",
+    "noDetections": "No detections at this time",
+    "loading": "Loading data...",
+    "timestamp": "Time",
+    "wearingHelmet": "Wearing Helmet",
+    "notWearingHelmet": "Not Wearing Helmet",
+    "passengers": "Passengers",
+    "overCapacityBadge": "Over Capacity",
+    "violation": "Violation"
+  },
+  "errors": {
+    "errorOccurred": "An Error Occurred",
+    "unknownError": "An unknown error occurred",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundMessage": "The page you are looking for does not exist",
+    "helpPageDev": "Help page is under development"
+  },
+  "recording": "REC",
+  "sidebar": {
+    "home": "Home",
+    "realtimeMonitoring": "Real-time Monitoring",
+    "dashboard": "Dashboard",
+    "dashboardDesc": "Statistics and Reports",
+    "help": "Help",
+    "helpDesc": "User Guide",
+    "settings": "Settings",
+    "settingsDesc": "System Settings"
+  },
+  "login": {
+    "title": "Helmet Detection System - King Mongkut's University of Technology Thonburi",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "errorMessage": "Unable to sign in"
+  },
+  "dashboard": {
+    "title": "Statistics Dashboard",
+    "subtitle": "Helmet Detection Overview - King Mongkut's University of Technology Thonburi",
+    "timeRange": "Time Range",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "chartType": "Chart Type",
+    "hourly": "Hourly",
+    "weekly": "Weekly",
+    "totalViolations": "Total Violations",
+    "totalDetections": "Total Detections",
+    "averageCompliance": "Average Compliance",
+    "excessPassengers": "Excess Passengers",
+    "complianceByDay": "Compliance by Day",
+    "violationTypes": "Violation Types",
+    "helmetCompliance": "Helmet Compliance",
+    "downloadReport": "Download Report"
+  },
+  "settings": {
+    "title": "System Settings",
+    "subtitle": "Adjust display, notifications, and detection settings based on your permissions",
+    "userProfile": "User Profile",
+    "profileDesc": "Basic information and usage preferences for this account",
+    "displayName": "Display Name",
+    "email": "Email",
+    "timezone": "Time Zone",
+    "language": "Language",
+    "notifications": "Notifications",
+    "notificationsDesc": "Control the type and frequency of alerts",
+    "notifyInApp": "In-App Notifications",
+    "notifyInAppDesc": "Show notifications on the web page when violations are detected",
+    "notifyEmail": "Email Notifications",
+    "notifyEmailDesc": "Send important events to registered email",
+    "notifySound": "Sound Notifications",
+    "notifySoundDesc": "Play sound when violations are detected",
+    "notificationFormat": "Notification Format",
+    "instant": "Instant",
+    "every5Min": "Every 5 minutes",
+    "daily": "Daily",
+    "realtimeDisplay": "Real-time Display Settings",
+    "realtimeDisplayDesc": "Adjust refresh and displayed data",
+    "recentItems": "Recent Items",
+    "refreshInterval": "Refresh Interval (seconds)",
+    "showOnlyViolations": "Show Only Violations",
+    "showOnlyViolationsDesc": "Hide compliant events from the display table",
+    "adminSettings": "Admin Settings",
+    "adminSettingsDesc": "System values affecting detection and data storage",
+    "cameraSource": "Camera Source",
+    "detectionThreshold": "Detection Threshold",
+    "snapshotEnabled": "Enable Snapshots",
+    "snapshotEnabledDesc": "Save snapshots when violations are detected for review",
+    "dataRetention": "Data Retention (days)",
+    "saveMessage": "Settings saved successfully",
+    "admin": "Admin",
+    "security": "Security",
+    "user": "User",
+    "role": "Role"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "confirm": "Confirm"
+  }
+}

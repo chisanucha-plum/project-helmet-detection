@@ -7,29 +7,21 @@ import {
   subscribeToHelmetEvents,
 } from "@/services/helmet-detection.service"
 
-/**
- * Custom hook for managing real-time helmet detection data
- * Handles:
- * - Loading historical detections on mount
- * - Subscribing to SSE events when recording is active
- * - Error handling for API failures
- * - Cleanup of event subscriptions
- *
- * @returns Object with detections, loading state, error state, and recording controls
- */
+const MAX_DETECTIONS = 50
+
 export function useRealTimeDetections(): UseRealTimeDetectionsReturn {
   const [detections, setDetections] = useState<DetectionResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [isRecording, setIsRecording] = useState(false)
 
-  // Load initial history from database
+  // Load initial history
   useEffect(() => {
     const loadHistory = async () => {
       try {
         setIsLoading(true)
         setError(null)
-        const history = await fetchHelmetHistory(50)
+        const history = await fetchHelmetHistory(MAX_DETECTIONS)
         setDetections(history)
       } catch (err) {
         const error = err instanceof Error ? err : new Error("Failed to load history")
@@ -43,13 +35,13 @@ export function useRealTimeDetections(): UseRealTimeDetectionsReturn {
     loadHistory()
   }, [])
 
-  // Subscribe to real-time events when recording is active
+  // Subscribe to real-time events
   useEffect(() => {
     if (!isRecording) return
 
+    // Subscribe to real-time events
     const handleNewDetections = (newDetections: DetectionResult[]) => {
-      // Add new detections to the top and keep only last 50
-      setDetections((prev) => [...newDetections, ...prev].slice(0, 50))
+      setDetections((prev) => [...newDetections, ...prev].slice(0, MAX_DETECTIONS))
       setError(null)
     }
 
@@ -58,16 +50,8 @@ export function useRealTimeDetections(): UseRealTimeDetectionsReturn {
       setError(err)
     }
 
-    // Subscribe to SSE events
-    const unsubscribe = subscribeToHelmetEvents(
-      handleNewDetections,
-      handleError
-    )
-
-    // Cleanup subscription when recording stops or component unmounts
-    return () => {
-      unsubscribe()
-    }
+    const unsubscribe = subscribeToHelmetEvents(handleNewDetections, handleError)
+    return () => unsubscribe()
   }, [isRecording])
 
   const handleSetIsRecording = useCallback((value: boolean) => {
