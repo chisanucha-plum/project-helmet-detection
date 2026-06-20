@@ -75,6 +75,12 @@ uvicorn.log
 backend/frames_storage/
 frames_storage/
 
+# Configuration files (local/secrets)
+config.development.json
+config.production.json
+backend/config.development.json
+backend/config.production.json
+
 # Frontend (React / Node)
 frontend/node_modules/
 frontend/dist/

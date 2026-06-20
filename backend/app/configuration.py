@@ -23,13 +23,16 @@ logger = logging.getLogger(__name__)
 class DetectionConfig:
     """Configuration for motorcycle and helmet detection."""
 
-    pad_filter: int  # Padding for helmet proximity to motorcycle
-    helmet_detect_confidence: float  # Confidence threshold for helmet detection
-    helmet_detect_imgsz: int  # Image size for helmet detection model
-    motorcycle_confidence: float  # Confidence threshold for motorcycle detection
-    line_position_percent: (
-        float  # Detection line as percentage of frame width (0.0-1.0)
-    )
+    pad_filter: int
+    helmet_detect_confidence: float
+    helmet_detect_imgsz: int
+    motorcycle_confidence: float
+    line_position_percent: float
+    helmet_on_label: str
+    helmet_off_label: str
+    motorcycle_class_id: int
+    tracker_name: str
+    line_overlay_alpha: float
 
     @staticmethod
     def from_dict(data: dict) -> "DetectionConfig":
@@ -37,9 +40,14 @@ class DetectionConfig:
         return DetectionConfig(
             pad_filter=data.get("pad_filter", 80),
             helmet_detect_confidence=data.get("helmet_detect_confidence", 0.20),
-            helmet_detect_imgsz=data.get("helmet_detect_imgsz", 1280),
+            helmet_detect_imgsz=data.get("helmet_detect_imgsz", 640),
             motorcycle_confidence=data.get("motorcycle_confidence", 0.5),
             line_position_percent=data.get("line_position_percent", 0.5),
+            helmet_on_label=data.get("helmet_on_label", "helmet on"),
+            helmet_off_label=data.get("helmet_off_label", "helmet off"),
+            motorcycle_class_id=data.get("motorcycle_class_id", 3),
+            tracker_name=data.get("tracker_name", "bytetrack.yaml"),
+            line_overlay_alpha=data.get("line_overlay_alpha", 0.3),
         )
 
 
