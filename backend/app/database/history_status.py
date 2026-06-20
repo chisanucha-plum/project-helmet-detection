@@ -16,20 +16,6 @@ class HistoryStatus(Base):
     over_capacity: Mapped[bool] = mapped_column(Boolean, nullable=True)
     violation: Mapped[bool] = mapped_column(Boolean, nullable=True)
     timestamp: Mapped[str] = mapped_column(String, nullable=True)
+    frame_path: Mapped[str] = mapped_column(String, nullable=True)  # Path to saved frame image
 
-
-class HelmetStatus(Base):
-    """Database model for recording general helmet status metrics (legacy/extended status)."""
-
-    __tablename__ = "helmet_status"
-    __table_args__ = {"extend_existing": True}
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, index=True, autoincrement=True
-    )
-    helmet_detected: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    motorcycle_detected: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    no_helmet_in_roi: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    timestamp: Mapped[str] = mapped_column(String, nullable=False)
-    message: Mapped[str] = mapped_column(String, nullable=True)
 

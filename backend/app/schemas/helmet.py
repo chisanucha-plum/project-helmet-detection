@@ -16,6 +16,7 @@ class HistoryStatusResponse(BaseModel):
     over_capacity: Optional[bool] = None  # True if >2 passengers
     violation: Optional[bool] = None  # True if helmet missing
     timestamp: Optional[str] = None  # Detection timestamp
+    frame_path: Optional[str] = None  # Path to saved frame image
 
     class Config:
         from_attributes = True

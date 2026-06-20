@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -40,11 +40,12 @@ class DetectionRecord:
     and analyzing whether the rider was wearing a helmet.
     """
 
-    motorcycle_track_id: int  # Unique track ID for the motorcycle
-    helmet_status: bool  # True if helmet detected, False if missing/not detected
-    passenger_count: int  # Number of passengers detected (via helmets)
-    over_capacity: bool  # True if passenger count exceeds threshold (>2)
-    violation: bool  # True if helmet missing, False if helmet present or not detected
+    motorcycle_track_id: int
+    helmet_status: bool
+    passenger_count: int
+    over_capacity: bool
+    violation: bool
+    frame_path: str | None = None  # Frame snapshot path (optional)
 
     @staticmethod
     def from_dict(data: dict) -> "DetectionRecord":
@@ -55,6 +56,7 @@ class DetectionRecord:
             passenger_count=data.get("passenger_count", 1),
             over_capacity=data.get("over_capacity", False),
             violation=data.get("violation", False),
+            frame_path=data.get("frame_path"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,4 +67,5 @@ class DetectionRecord:
             "passenger_count": self.passenger_count,
             "over_capacity": self.over_capacity,
             "violation": self.violation,
+            "frame_path": self.frame_path,
         }
