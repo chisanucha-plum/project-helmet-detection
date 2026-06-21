@@ -55,11 +55,6 @@ export function LoginForm({
         username: currentUser.username,
       })
 
-      if (appRole === "admin") {
-        router.push("/dashboard")
-        return
-      }
-
       router.push("/real-time-monitoring")
     } catch (err: unknown) {
       if (err instanceof Error) {

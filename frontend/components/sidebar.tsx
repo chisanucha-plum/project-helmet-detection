@@ -12,6 +12,7 @@ import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings,
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
+import { useLanguage } from "@/hooks/useLanguage"
 
 interface SidebarProps {
   collapsed: boolean
@@ -27,42 +28,43 @@ interface NavItem {
   description?: string
 }
 
-const navItems: NavItem[] = [
+const getNavItems = (t: (key: string) => string): NavItem[] => [
   {
     icon: Home,
-    label: "หน้าหลัก",
+    label: t("sidebar.home"),
     path: "/real-time-monitoring",
-    description: "การตรวจสอบแบบ Real-time",
+    description: t("sidebar.realtimeMonitoring"),
   },
   {
     icon: BarChart3,
-    label: "แดชบอร์ด",
+    label: t("sidebar.dashboard"),
     path: "/dashboard",
-    description: "สถิติและรายงาน",
+    description: t("sidebar.dashboardDesc"),
   },
 ]
 
-const bottomNavItems: NavItem[] = [
+const getBottomNavItems = (t: (key: string) => string): NavItem[] => [
   {
     icon: HelpCircle,
-    label: "ช่วยเหลือ",
+    label: t("sidebar.help"),
     path: "/help",
-    description: "คู่มือการใช้งาน",
+    description: t("sidebar.helpDesc"),
   },
 ]
 
-const adminOnlyBottomNavItems: NavItem[] = [
+const getAdminOnlyBottomNavItems = (t: (key: string) => string): NavItem[] => [
   {
     icon: Settings,
-    label: "ตั้งค่า",
+    label: t("sidebar.settings"),
     path: "/settings",
-    description: "การตั้งค่าระบบ",
+    description: t("sidebar.settingsDesc"),
   },
 ]
 
 export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { t } = useLanguage("en")
   const [role, setRole] = useState<UserRole>(null)
   const [email, setEmail] = useState<string | null>(null)
 
@@ -91,20 +93,23 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
         : "text-gray-600"
 
   const visibleNavItems = useMemo(() => {
+    const items = getNavItems(t)
     if (role === "admin") {
-      return navItems
+      return items
     }
 
-    return navItems.filter((item) => item.path !== "/dashboard")
-  }, [role])
+    return items.filter((item: NavItem) => item.path !== "/dashboard")
+  }, [role, t])
 
   const visibleBottomNavItems = useMemo(() => {
+    const bottomItems = getBottomNavItems(t)
+    const adminItems = getAdminOnlyBottomNavItems(t)
     if (role === "admin" || role === "security") {
-      return [...adminOnlyBottomNavItems, ...bottomNavItems]
+      return [...adminItems, ...bottomItems]
     }
 
-    return bottomNavItems
-  }, [role])
+    return bottomItems
+  }, [role, t])
 
   const handleNavigation = (path: string) => {
     router.push(path)
@@ -135,8 +140,8 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-sidebar-foreground text-xs sm:text-sm truncate">ระบบตรวจจับการขับขี่</h2>
-              <p className="text-xs text-sidebar-foreground/60 truncate hidden sm:block">เทคโนโลยีพระจอมเกล้าธนบุรี</p>
+              <h2 className="font-semibold text-sidebar-foreground text-xs sm:text-sm truncate">{t("login.title")}</h2>
+              <p className="text-xs text-sidebar-foreground/60 truncate hidden sm:block">King Mongkut's University of Technology Thonburi</p>
             </div>
             {isMobile && (
               <Button
@@ -168,7 +173,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       {/* Navigation */}
       <nav className="flex-1 p-2 sm:p-3 overflow-y-auto">
         <div className="space-y-1">
-          {visibleNavItems.map((item) => {
+          {visibleNavItems.map((item: NavItem) => {
             const Icon = item.icon
             const isActive = pathname === item.path
 
@@ -225,7 +230,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       {/* Bottom Navigation */}
       <div className="p-3 sm:p-4 border-t border-gray-200">
         <div className="space-y-1">
-          {visibleBottomNavItems.map((item) => {
+          {visibleBottomNavItems.map((item: NavItem) => {
             const Icon = item.icon
             const isActive = pathname === item.path
 
