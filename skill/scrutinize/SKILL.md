@@ -1,65 +1,70 @@
 ---
 name: scrutinize
-description: Outsider-perspective end-to-end review of a plan, PR, or code change. First questions intent and whether a simpler/more elegant approach would achieve the same goal, then traces the actual code path (not just the diff) to verify the change does what it claims. Output is concise, actionable, and every call carries its rationale. Trigger on /scrutinize and proactively whenever the user asks to review, audit, sanity-check, or get a second opinion on a plan, PR, diff, design doc, or proposed code change.
+description: "Use this skill whenever the user asks to: review, audit, sanity-check, get second opinion, scrutinize, verify, validate, or deep-dive on a plan, PR, diff, design doc, or proposed code change. Trigger proactively on '/scrutinize' and when users want outsider-perspective verification that code actually does what it claims. Even if they just say 'double-check this' or 'does this look right', activate this skill."
 ---
 
 # Scrutinize
 
-Stand outside the change and ask whether it should exist at all, then verify it actually does what it claims end-to-end.
+Outsider-perspective end-to-end review that questions intent first, then verifies the change actually does what it claims by tracing real code paths.
 
-## Operating stance
+## Critical rules
 
-- **Outsider.** Forget who wrote it and why they think it's right. Read the artifact cold.
-- **End-to-end, not diff-local.** The diff is the entry point, not the scope. Follow the call graph through real code paths.
-- **Actionable, concise, with rationale.** Every finding states *what to change*, *why*, and *what evidence* led you there. No filler, no restating the diff back.
+- **No rubber-stamps** - "LGTM" is not valid output. Always show what you traced and checked
+- **Cite or it didn't happen** - Every claim references specific path, file, or line
+- **Distinguish claim from verification** - Separate "PR says X" from "I verified X"
+- **One simpler-alternative pass is mandatory** - Always ask if the change is necessary
+- **Lead with structural problems** - Don't pad with style nits when there's a real issue
+- **No flattery, no hedging** - State findings directly
+- **Question scope first** - Skip only if user explicitly says "don't question scope"
 
 ## Workflow
 
-Run these in order. Do not skip ahead.
+Run these steps in order. Do not skip ahead.
 
-### 1. Intent — what is this actually trying to do?
+### Operating stance
 
-- State the goal in one sentence, in your own words. If you cannot, the artifact is underspecified — say so and stop.
-- Ask: **is there a simpler, smaller, or more elegant way to achieve the same goal?** Consider:
-  - Doing nothing (is the problem real / load-bearing?).
-  - Using something that already exists in the codebase instead of adding new surface.
-  - A smaller change that solves 90% of the goal with 10% of the risk.
-  - Solving it at a different layer (config vs code, framework vs app, build vs runtime).
-- If a better alternative exists, name it explicitly with rationale. This is the most valuable thing you can output — surface it before the line-by-line review.
+- **Outsider** - Forget who wrote it and why they think it's right. Read the artifact cold
+- **End-to-end, not diff-local** - Follow the call graph through real code paths, not just the diff
+- **Actionable, concise, with rationale** - Every finding states what to change, why, and what evidence led there
 
-### 2. Trace — walk the actual code path
+### 1. Intent — What is this actually trying to do?
 
-- For each behavior the change claims, trace the path end-to-end through the real code, not just the lines in the diff:
-  - Entry point → call sites → branches taken → state mutated → exit / return / side effect.
-  - Include the unchanged code on either side of the diff. Bugs hide at the seams.
-- For a plan or design doc: trace the proposed flow against the existing system. Where does it touch reality? What does it assume that isn't true?
-- Note every place the trace surprises you (unexpected branch, dead code reached, state you didn't know existed). Surprises are signal.
+- State the goal in one sentence. If you cannot, the artifact is underspecified — say so and stop
+- Ask: **Is there a simpler, smaller, or more elegant way?** Consider:
+  - Doing nothing (is the problem real/load-bearing?)
+  - Using existing codebase features instead of adding new surface
+  - A smaller change solving 90% with 10% of the risk
+  - Solving at different layer (config vs code, framework vs app, build vs runtime)
+- If better alternative exists, name it explicitly with rationale before line-by-line review
 
-### 3. Verify — does it actually do what it claims?
+### 2. Trace — Walk the actual code path
 
-For each claim the change/plan makes, answer:
+- For each behavior the change claims, trace path end-to-end through real code (not just diff lines):
+  - Entry point → call sites → branches taken → state mutated → exit/return/side effect
+  - Include unchanged code on either side of diff. Bugs hide at seams
+- For plan/design doc: trace proposed flow against existing system. Where does it touch reality?
+- Note every surprise (unexpected branch, dead code reached, unknown state). Surprises are signal
 
-- **Does the code path you just traced actually produce that behavior?** Walk it explicitly. "It claims X. Path: A → B → C. At C, [observation]. Therefore [holds / doesn't hold]."
-- **What inputs / states would break it?** Edge cases, concurrent callers, error paths, partial failures, retries, empty/null/unicode/huge inputs, ordering assumptions.
-- **What does it silently change?** Performance, error semantics, observability, contract for other callers, on-disk / on-wire format.
-- **How is it tested?** Do the tests actually exercise the traced path, or do they pass while skipping it (mocks that hide the bug, asserts on intermediate state, happy path only)?
+### 3. Verify — Does it actually do what it claims?
+
+For each claim:
+- **Does the traced code path actually produce that behavior?** Walk explicitly: "Claims X. Path: A → B → C. At C, [observation]. Therefore [holds/doesn't hold]"
+- **What inputs/states would break it?** Edge cases, concurrent callers, error paths, partial failures, retries, empty/null/unicode/huge inputs, ordering assumptions
+- **What does it silently change?** Performance, error semantics, observability, contract for other callers, on-disk/on-wire format
+- **How is it tested?** Do tests exercise the traced path, or pass while skipping it (mocks hiding bugs, asserts on intermediate state, happy path only)?
 
 ### 4. Report
 
-Output one tight section per finding. Order by severity (blocker → major → nit). For each:
+Output one section per finding. Order by severity (blocker → major → nit):
 
-- **Finding** — one sentence, specific. Cite `file:line` when applicable.
-- **Why it matters** — the consequence, not the principle.
-- **Evidence** — the trace step or input that exposes it.
-- **Suggested change** — concrete, minimal.
+**Per finding:**
+- **Finding** — One sentence, specific. Cite file:line when applicable
+- **Why it matters** — The consequence, not the principle
+- **Evidence** — The trace step or input that exposes it
+- **Suggested change** — Concrete, minimal
 
-Close with a one-line verdict: ship / fix-then-ship / rework / reject — with the single biggest reason.
+**Close with verdict:** ship / fix-then-ship / rework / reject — with single biggest reason
 
-## Operating rules
+## Bundled resources
 
-- **No rubber-stamps.** "LGTM" is not an output. If you genuinely find nothing, say what you traced and what you checked, so the user can judge whether your review covered the surface they cared about.
-- **Cite or it didn't happen.** Every claim about the code references a specific path, file, or line. No vague "this might break under load."
-- **Distinguish claim from verification.** "The PR says X" and "I traced X and confirmed / refuted it" are different — keep them separate in the output.
-- **One simpler-alternative pass is mandatory.** Even on small changes, spend one breath asking if the whole thing is necessary. Skip only if the user explicitly says "don't question scope."
-- **Don't pad with style nits when there's a structural problem.** If step 1 or step 2 surfaces a real issue, lead with it; defer nits or drop them.
-- **No flattery, no hedging.** "This is a great PR but..." adds nothing. State the finding.
+None - This skill contains all necessary review methodology inline.
