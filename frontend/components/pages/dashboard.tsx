@@ -24,6 +24,10 @@ import {
 import { helmetComplianceData, hourlyData, violationTypeData, weeklyData } from "@/mocks/dashboardMocks"
 import { useLanguage } from "@/hooks/useLanguage"
 
+// TODO: Replace mock data with real backend API calls
+// Current implementation uses mock data from dashboardMocks.ts
+// Wire to /helmet/history endpoint for real statistics when ready
+
 // Memoize tooltip style to prevent recreation on every render
 const tooltipStyle = {
   backgroundColor: "hsl(var(--card))",
@@ -63,6 +67,7 @@ export function Dashboard() {
         <div>
           <h2 className="text-2xl font-bold text-foreground">{t("dashboard.title")}</h2>
           <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
+          <Badge variant="secondary" className="mt-2 text-xs">Demo Data</Badge>
         </div>
 
         <div className="flex items-center gap-3">

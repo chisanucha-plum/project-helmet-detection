@@ -4,8 +4,9 @@ import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Camera, CheckCircle, Users } from "lucide-react"
 import { useState } from "react"
 import { DetectionModal } from "./DetectionModal"
+import { API_BASE_URL } from "@/app/api/config"
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
+const BASE_URL = API_BASE_URL
 
 interface Detection {
   id: string
