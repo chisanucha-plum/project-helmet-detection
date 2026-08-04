@@ -158,6 +158,7 @@ class TestDetectionRecord:
             "passenger_count": 1,
             "over_capacity": False,
             "violation": True,
+            "frame_path": None,
         }
 
         record = DetectionRecord.from_dict(original_data)

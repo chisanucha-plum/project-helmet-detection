@@ -18,6 +18,7 @@ def create_mock_config():
     config.helmet_detect_imgsz = 1280
     config.motorcycle_confidence = 0.5
     config.line_position_percent = 0.5
+    config.line_overlay_alpha = 0.5
     return config
 
 
