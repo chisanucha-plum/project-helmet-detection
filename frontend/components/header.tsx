@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from 'next/navigation'
 import { useLanguage } from "@/hooks/useLanguage"
 import { LanguageSelector } from "@/components/LanguageSelector"
+import { CAMERA_NAME } from "@/app/api/config"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -115,13 +116,13 @@ function NotificationList() {
         <li>
           <button onClick={navigateToResults} className="w-full text-left p-2 rounded-md hover:bg-accent/5">
             <div className="text-sm font-medium">พบการกระทำผิด: ไม่สวมหมวกกันน็อค</div>
-            <div className="text-xs text-muted-foreground">กล้องหลัก — 2 นาทีที่แล้ว</div>
+            <div className="text-xs text-muted-foreground">{CAMERA_NAME} — 2 นาทีที่แล้ว</div>
           </button>
         </li>
         <li>
           <button onClick={navigateToResults} className="w-full text-left p-2 rounded-md hover:bg-accent/5">
             <div className="text-sm font-medium">พบการกระทำผิด: นั่งเกิน 2 คน</div>
-            <div className="text-xs text-muted-foreground">กล้องรอง — 10 นาทีที่แล้ว</div>
+            <div className="text-xs text-muted-foreground">{CAMERA_NAME} — 10 นาทีที่แล้ว</div>
           </button>
         </li>
       </ul>

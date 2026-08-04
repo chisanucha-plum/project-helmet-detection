@@ -20,7 +20,7 @@ Two-stage YOLO pipeline for automatic traffic violation detection:
 - ✅ Overcrowding detection (>2 passengers)
 - ✅ Live MJPEG video streaming
 - ✅ SSE-based real-time events
-- ✅ Historical record storage (SQLite)
+- ✅ Historical record storage (PostgreSQL)
 - ✅ Multi-language support (TH/EN)
 - ✅ Role-based access control
 
@@ -49,7 +49,7 @@ A violation is recorded when:
 ## Tech Stack
 
 **Backend**
-- Python 3.12+, FastAPI, SQLAlchemy, SQLite
+- Python 3.12+, FastAPI, SQLAlchemy, PostgreSQL
 - OpenCV, Ultralytics YOLOv8, ByteTrack
 
 **Frontend**
@@ -61,10 +61,17 @@ A violation is recorded when:
 
 ## Quick Start
 
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- PostgreSQL 14+
+
 ### Backend
 ```bash
 cd backend
 pip install -r requirements.txt
+# Set DATABASE_URL environment variable for PostgreSQL
+export DATABASE_URL="postgresql://user:password@localhost:5432/helmet_detection"
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -79,6 +86,14 @@ npm run dev
 ```bash
 docker-compose up --build
 ```
+
+### Model & Video Assets
+Trained models (.pt) and sample videos (.mp4) are excluded from git to reduce repo size. Place them in:
+- `backend/train/` - YOLO model checkpoints
+- `src/case/` - Test case videos
+- `src/image/` - Additional test videos
+
+Download from releases or external storage as documented in deployment guide.
 
 ## API Endpoints
 

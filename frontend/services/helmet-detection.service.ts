@@ -8,8 +8,9 @@ import {
   DetectionEvent,
   DetectionResult,
 } from "@/types/detection.types"
+import { API_BASE_URL, CAMERA_NAME } from "@/app/api/config"
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
+const BASE_URL = API_BASE_URL
 
 /**
  * Fetch helmet detection history from the database
@@ -31,7 +32,7 @@ export async function fetchHelmetHistory(
     const results: DetectionResult[] = data.map((item) => ({
       id: item.id,
       timestamp: item.timestamp ?? "",
-      camera: "กล้องหลัก",
+      camera: CAMERA_NAME,
       helmetStatus: (item.helmet_status === true ? "wearing" : "not-wearing") as "wearing" | "not-wearing",
       passengerCount: item.passenger_count ?? 1,
       violation: item.violation ?? false,
@@ -67,13 +68,12 @@ export function subscribeToHelmetEvents(
   try {
     const raw = JSON.parse(event.data)
     
-    // รองรับทั้ง object เดียวและ array
     const items: DetectionEvent[] = Array.isArray(raw) ? raw : [raw]
 
     const mapped: DetectionResult[] = items.map((item) => ({
       id:             `trk_${item.motorcycle_track_id}_${Date.now()}`,
       timestamp:      new Date().toLocaleString("th-TH"),
-      camera:         "กล้องหลัก",
+      camera:         CAMERA_NAME,
       helmetStatus:   item.helmet_status === true ? "wearing" : "not-wearing",
       passengerCount: item.passenger_count ?? 1,
       violation:      item.violation ?? false,
