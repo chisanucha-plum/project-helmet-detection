@@ -4,9 +4,9 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import cv2
+import numpy as np
 from app.configuration import Configuration
 from app.database.database import SessionLocal
 from app.database.history_status import HistoryStatus
@@ -31,12 +31,10 @@ class CameraHub:
         self._lock = threading.Lock()
         self._frame_subs: list[asyncio.Queue] = []
         self._detect_subs: list[asyncio.Queue] = []
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._service: Optional[DetectionService] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-
-    # ── public subscriber API ────────────────────────────────────────────────
+        self._service: DetectionService | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def subscribe_frames(self) -> asyncio.Queue:
         """Return a queue that receives JPEG bytes for every captured frame."""
@@ -68,8 +66,6 @@ class CameraHub:
                 self._detect_subs.remove(q)
             self._stop_if_idle()
 
-    # ── lifecycle (called inside lock) ──────────────────────────────────────
-
     def _ensure_running(self) -> None:
         if self._thread is None or not self._thread.is_alive():
             self._stop_event.clear()
@@ -82,8 +78,6 @@ class CameraHub:
         if not self._frame_subs and not self._detect_subs:
             self._stop_event.set()
             logger.info("Stopping camera capture (no subscribers)")
-
-    # ── thread-safe broadcast ────────────────────────────────────────────────
 
     def _push_frame(self, data: bytes) -> None:
         """Push JPEG frame to all MJPEG subscribers.
@@ -111,7 +105,9 @@ class CameraHub:
         for q in list(self._frame_subs):
             self._loop.call_soon_threadsafe(_put, q, data)
 
-    def _push_detections(self, records: list[DetectionRecord], frame: any = None) -> None:
+    def _push_detections(
+        self, records: list[DetectionRecord], frame: np.ndarray | None = None
+    ) -> None:
         """Push detection records to all subscribers and persist to database.
 
         Args:
@@ -136,9 +132,11 @@ class CameraHub:
 
     # ── persistence ──────────────────────────────────────────────────────────
 
-    def _save_to_db(self, records: list[DetectionRecord], frame: any = None) -> None:
+    def _save_to_db(
+        self, records: list[DetectionRecord], frame: np.ndarray | None = None
+    ) -> None:
         """Persist detection records to history_status table with frame.
-        
+
         Args:
             records: List of detection records to save
             frame: OpenCV frame (optional) for saving snapshot
@@ -150,7 +148,7 @@ class CameraHub:
                         f"trk_{r.motorcycle_track_id}_"
                         f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
                     )
-                    
+
                     # Save frame snapshot if provided (before storing in DB)
                     frame_path = None
                     if frame is not None:
@@ -159,7 +157,7 @@ class CameraHub:
                         )
                         # Update record with frame_path
                         r.frame_path = frame_path
-                    
+
                     db.add(
                         HistoryStatus(
                             id=record_id,
@@ -211,7 +209,7 @@ class CameraHub:
         if app.use_webcam:
             # DirectShow avoids MSMF grab errors on Windows
             return cv2.VideoCapture(app.webcam_id, cv2.CAP_DSHOW)
-        
+
         # Convert video_path to string to handle Path objects
         video_path = str(Path(app.video_path))
         return cv2.VideoCapture(video_path)
@@ -243,7 +241,7 @@ class CameraHub:
             else config.application_settings.video_path
         )
         logger.info(f"Started capturing video frames: {source_desc}")
-        
+
         # Log video properties for debugging
         fps = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -254,12 +252,14 @@ class CameraHub:
             while not self._stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning(f"Video loop complete (read {frame_count_read} frames), restarting...")
+                    logger.warning(
+                        f"Video loop complete (read {frame_count_read} frames), restarting..."
+                    )
                     # Restart video from beginning
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     service.reset_tracks()
                     continue
-                
+
                 frame_count_read += 1
 
                 try:

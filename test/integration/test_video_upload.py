@@ -53,8 +53,8 @@ def test_detection_record_json_serialization():
     assert parsed["violation"] is False
 
 
-def test_detection_record_from_json():
-    """Test creating detection record from JSON."""
+def test_detection_record_construction_from_json_data():
+    """Test creating detection record from JSON-like dict via constructor."""
     json_data = {
         "motorcycle_track_id": 2,
         "helmet_status": False,
@@ -62,9 +62,9 @@ def test_detection_record_from_json():
         "over_capacity": False,
         "violation": True,
     }
-    
-    record = DetectionRecord.from_dict(json_data)
-    
+
+    record = DetectionRecord(**json_data)
+
     assert record.motorcycle_track_id == 2
     assert record.helmet_status is False
     assert record.violation is True

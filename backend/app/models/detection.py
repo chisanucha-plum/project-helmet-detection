@@ -47,18 +47,6 @@ class DetectionRecord:
     violation: bool
     frame_path: str | None = None  # Frame snapshot path (optional)
 
-    @staticmethod
-    def from_dict(data: dict) -> "DetectionRecord":
-        """Create DetectionRecord from dictionary."""
-        return DetectionRecord(
-            motorcycle_track_id=data["motorcycle_track_id"],
-            helmet_status=data["helmet_status"],
-            passenger_count=data.get("passenger_count", 1),
-            over_capacity=data.get("over_capacity", False),
-            violation=data.get("violation", False),
-            frame_path=data.get("frame_path"),
-        )
-
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {

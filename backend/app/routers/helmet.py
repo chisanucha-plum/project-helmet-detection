@@ -2,15 +2,16 @@ import asyncio
 import logging
 from typing import Any
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse, StreamingResponse
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.database.database import get_db
 from app.database.history_status import HistoryStatus
 from app.schemas.helmet import HistoryStatusResponse
 from app.services.camera_hub import camera_hub
 from app.services.frame_storage import frame_storage
-from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,6 @@ router = APIRouter(tags=["Helmet Detection"])
 # Query parameter limits for history endpoint
 DEFAULT_HISTORY_LIMIT = 50
 MAX_HISTORY_LIMIT = 500
-
-# MJPEG streaming boundary
-MJPEG_BOUNDARY = b"--frame"
 
 
 @router.get("/stream", status_code=status.HTTP_200_OK)
@@ -105,19 +103,18 @@ async def get_history_records(
 @router.get("/frame/{date}/{filename}")
 async def get_frame(date: str, filename: str) -> FileResponse:
     """Get saved frame image by date and filename.
-    
+
     Args:
         date: Date folder (YYYY-MM-DD)
         filename: Filename in format track_{id}_{status}_{timestamp}.jpg
-        
+
     Returns:
         JPEG image file
     """
     filepath = frame_storage.base_dir / date / filename
-    
+
     if not filepath.exists():
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Frame not found")
-    
+
     logger.debug(f"Serving frame: {filepath}")
     return FileResponse(filepath, media_type="image/jpeg")

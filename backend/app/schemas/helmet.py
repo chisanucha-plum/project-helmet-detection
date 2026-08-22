@@ -1,5 +1,6 @@
 from typing import Optional
-from pydantic import BaseModel
+
+from pydantic import BaseModel, ConfigDict
 
 
 class HistoryStatusResponse(BaseModel):
@@ -9,6 +10,8 @@ class HistoryStatusResponse(BaseModel):
     detection line, including helmet status and passenger information.
     """
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: str  # Unique record ID
     track_id: Optional[int] = None  # Motorcycle track ID
     helmet_status: Optional[bool] = None  # True if helmet detected
@@ -17,6 +20,3 @@ class HistoryStatusResponse(BaseModel):
     violation: Optional[bool] = None  # True if helmet missing
     timestamp: Optional[str] = None  # Detection timestamp
     frame_path: Optional[str] = None  # Path to saved frame image
-
-    class Config:
-        from_attributes = True
