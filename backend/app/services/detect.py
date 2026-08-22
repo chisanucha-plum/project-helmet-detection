@@ -1,12 +1,11 @@
-"""Motorcycle and helmet detection service using YOLO models."""
-
 import logging
 from pathlib import Path
-from typing import Any
 
 import cv2
+import numpy as np
 import torch
 from ultralytics import YOLO
+from ultralytics.engine.results import Boxes
 
 from app.configuration import DetectionConfig
 from app.models.detection import BoundingBox, DetectionRecord
@@ -67,8 +66,8 @@ class DetectionService:
         )
 
     def detect_and_track(
-        self, frame: Any, conf: float | None = None
-    ) -> tuple[Any, list[DetectionRecord] | None]:
+        self, frame: np.ndarray, conf: float | None = None
+    ) -> tuple[np.ndarray, list[DetectionRecord] | None]:
         """Detect motorcycles and analyze helmets in a frame.
 
         Args:
@@ -109,7 +108,7 @@ class DetectionService:
         return frame, new_records
 
     def _process_motorcycle_tracks(
-        self, frame: Any, conf: float
+        self, frame: np.ndarray, conf: float
     ) -> list[DetectionRecord]:
         """Process motorcycle tracking and helmet detection for crossed motorcycles.
 
@@ -188,7 +187,7 @@ class DetectionService:
         return prev_center_x > self._line_x and center_x <= self._line_x
 
     def _analyze_helmets(
-        self, frame: Any, moto_box: BoundingBox, track_id: int
+        self, frame: np.ndarray, moto_box: BoundingBox, track_id: int
     ) -> DetectionRecord:
         """Detect and classify helmets for a motorcycle that crossed the line.
 
@@ -232,14 +231,20 @@ class DetectionService:
                     helmet_labels.append(label)
 
                     # Draw helmet detection box with color coding
-                    color = (0, 255, 0) if label == self._config.helmet_on_label else (0, 0, 255)
+                    color = (
+                        (0, 255, 0)
+                        if label == self._config.helmet_on_label
+                        else (0, 0, 255)
+                    )
                     self._draw_box(frame, helmet_box, color, label)
 
         # Analyze helmet status
         record.passenger_count = len(helmet_labels)
         record.over_capacity = record.passenger_count > 2
         record.helmet_status = (
-            all(l == self._config.helmet_on_label for l in helmet_labels) if helmet_labels else False
+            all(l == self._config.helmet_on_label for l in helmet_labels)
+            if helmet_labels
+            else False
         )
         record.violation = len(helmet_labels) > 0 and not record.helmet_status
 
@@ -268,7 +273,7 @@ class DetectionService:
             moto_box.y1 - pad
         ) <= helmet_box.center_y <= (moto_box.y2 + pad)
 
-    def _extract_box_coords(self, box: Any) -> BoundingBox:
+    def _extract_box_coords(self, box: Boxes) -> BoundingBox:
         """Extract bounding box coordinates from YOLO box object.
 
         Args:
@@ -280,7 +285,13 @@ class DetectionService:
         x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
         return BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
 
-    def _draw_box(self, frame: Any, box: BoundingBox, color: tuple, label: str) -> None:
+    def _draw_box(
+        self,
+        frame: np.ndarray,
+        box: BoundingBox,
+        color: tuple[int, int, int],
+        label: str,
+    ) -> None:
         """Draw bounding box and label on frame.
 
         Args:
@@ -300,7 +311,7 @@ class DetectionService:
             2,
         )
 
-    def _draw_detection_line(self, frame: Any, height: int) -> None:
+    def _draw_detection_line(self, frame: np.ndarray, height: int) -> None:
         """Draw semi-transparent detection line on frame.
 
         Args:

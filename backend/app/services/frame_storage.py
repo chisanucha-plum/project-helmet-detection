@@ -1,7 +1,7 @@
 """Frame storage service for saving detected frames as images."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class FrameStorage:
     """Save frames to disk with organized directory structure."""
 
-    def __init__(self, base_dir: str = "frames_storage"):
+    def __init__(self, base_dir: str | Path = "frames_storage") -> None:
         """Initialize frame storage.
         
         Args:
@@ -81,15 +81,13 @@ class FrameStorage:
 
     def cleanup_old_frames(self, days: int = 7) -> int:
         """Remove frames older than N days.
-        
+
         Args:
             days: Number of days to keep
-            
+
         Returns:
             Number of files deleted
         """
-        from datetime import timedelta
-
         cutoff_date = datetime.now() - timedelta(days=days)
         deleted_count = 0
 

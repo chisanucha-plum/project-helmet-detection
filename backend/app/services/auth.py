@@ -2,7 +2,6 @@ import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
