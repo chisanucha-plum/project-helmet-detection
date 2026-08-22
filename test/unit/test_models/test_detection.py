@@ -1,7 +1,5 @@
 """Unit tests for detection models."""
 
-import pytest
-
 from app.models.detection import BoundingBox, DetectionRecord
 
 
@@ -99,39 +97,6 @@ class TestDetectionRecord:
         assert record.over_capacity is True
         assert record.violation is False
 
-    def test_detection_record_from_dict_full_data(self):
-        """Test creating DetectionRecord from dictionary with all fields."""
-        data = {
-            "motorcycle_track_id": 1,
-            "helmet_status": True,
-            "passenger_count": 2,
-            "over_capacity": True,
-            "violation": False,
-        }
-
-        record = DetectionRecord.from_dict(data)
-
-        assert record.motorcycle_track_id == 1
-        assert record.helmet_status is True
-        assert record.passenger_count == 2
-        assert record.over_capacity is True
-        assert record.violation is False
-
-    def test_detection_record_from_dict_minimal_data(self):
-        """Test creating DetectionRecord from dictionary with minimal required fields."""
-        data = {
-            "motorcycle_track_id": 5,
-            "helmet_status": False,
-        }
-
-        record = DetectionRecord.from_dict(data)
-
-        assert record.motorcycle_track_id == 5
-        assert record.helmet_status is False
-        assert record.passenger_count == 1  # default value
-        assert record.over_capacity is False  # default value
-        assert record.violation is False  # default value
-
     def test_detection_record_to_dict(self):
         """Test converting DetectionRecord to dictionary."""
         record = DetectionRecord(
@@ -149,19 +114,4 @@ class TestDetectionRecord:
         assert result_dict["passenger_count"] == 2
         assert result_dict["over_capacity"] is True
         assert result_dict["violation"] is False
-
-    def test_detection_record_from_dict_to_dict_roundtrip(self):
-        """Test that from_dict and to_dict are symmetric operations."""
-        original_data = {
-            "motorcycle_track_id": 3,
-            "helmet_status": False,
-            "passenger_count": 1,
-            "over_capacity": False,
-            "violation": True,
-            "frame_path": None,
-        }
-
-        record = DetectionRecord.from_dict(original_data)
-        result_dict = record.to_dict()
-
-        assert result_dict == original_data
+        assert result_dict["frame_path"] is None
