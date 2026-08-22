@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class FrameStorage:
 
     def save_frame(
         self,
-        frame: any,
+        frame: np.ndarray,
         track_id: int,
         violation: bool,
         quality: int = 80,
@@ -67,17 +68,6 @@ class FrameStorage:
         except Exception as e:
             logger.error(f"Failed to save frame: {e}", exc_info=True)
             return None
-
-    def get_frame_url(self, relative_path: str) -> str:
-        """Convert relative path to API URL.
-        
-        Args:
-            relative_path: Relative path from frame storage
-            
-        Returns:
-            Full API endpoint URL
-        """
-        return f"/helmet/frame/{relative_path}"
 
     def cleanup_old_frames(self, days: int = 7) -> int:
         """Remove frames older than N days.
