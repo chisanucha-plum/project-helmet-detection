@@ -6,10 +6,9 @@ import { useCallback, useEffect, useState } from "react"
 
 interface VideoStreamProps {
   mjpegUrl?: string
-  isRecording: boolean
 }
 
-export function VideoStream({ mjpegUrl, isRecording }: VideoStreamProps) {
+export function VideoStream({ mjpegUrl }: VideoStreamProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const toggleFullscreen = useCallback(() => {

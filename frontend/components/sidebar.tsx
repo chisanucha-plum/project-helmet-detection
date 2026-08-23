@@ -8,7 +8,7 @@ import {
   getStoredUserRole,
   type UserRole,
 } from "@/stores/auth-store"
-import { BarChart3, ChevronLeft, ChevronRight, HelpCircle, Home, Menu, Settings, X } from "lucide-react"
+import { BarChart3, HelpCircle, Home, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -75,11 +75,9 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
     }
 
     syncUserFromStorage()
-    window.addEventListener("storage", syncUserFromStorage)
     window.addEventListener(AUTH_USER_UPDATED_EVENT, syncUserFromStorage)
 
     return () => {
-      window.removeEventListener("storage", syncUserFromStorage)
       window.removeEventListener(AUTH_USER_UPDATED_EVENT, syncUserFromStorage)
     }
   }, [])

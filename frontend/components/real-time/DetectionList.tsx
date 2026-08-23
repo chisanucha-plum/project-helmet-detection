@@ -4,26 +4,15 @@ import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Camera, CheckCircle, Users } from "lucide-react"
 import { useState } from "react"
 import { DetectionModal } from "./DetectionModal"
-import { API_BASE_URL } from "@/app/api/config"
-
-const BASE_URL = API_BASE_URL
-
-interface Detection {
-  id: string
-  timestamp: string
-  helmetStatus: "wearing" | "not-wearing"
-  passengerCount: number
-  violation?: boolean
-  camera: string
-  framePath?: string
-}
+import { API_BASE_URL } from "@/lib/api/config"
+import type { DetectionResult } from "@/types/detection.types"
 
 interface DetectionListProps {
-  detections: Detection[]
+  detections: DetectionResult[]
   t: (key: string) => string
 }
 
-function DetectionItem({ detection, t }: { detection: Detection; t: (key: string) => string }) {
+function DetectionItem({ detection, t }: { detection: DetectionResult; t: (key: string) => string }) {
   const [showModal, setShowModal] = useState(false)
 
   return (
@@ -34,7 +23,7 @@ function DetectionItem({ detection, t }: { detection: Detection; t: (key: string
             className="flex-shrink-0 w-20 h-20 rounded-md overflow-hidden bg-background border border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
             onClick={() => setShowModal(true)}
           >
-            <img src={`${BASE_URL}/helmet/frame/${detection.framePath}`} alt={`Detection ${detection.id}`} className="w-full h-full object-cover" loading="lazy" />
+            <img src={`${API_BASE_URL}/helmet/frame/${detection.framePath}`} alt={`Detection ${detection.id}`} className="w-full h-full object-cover" loading="lazy" />
           </div>
         ) : (
           <div className="flex-shrink-0 w-20 h-20 rounded-md bg-muted border border-border flex items-center justify-center">
@@ -65,7 +54,7 @@ function DetectionItem({ detection, t }: { detection: Detection; t: (key: string
 
       <DetectionModal 
         isOpen={showModal} 
-        imageUrl={`${BASE_URL}/helmet/frame/${detection.framePath}`} 
+        imageUrl={`${API_BASE_URL}/helmet/frame/${detection.framePath}`}
         onClose={() => setShowModal(false)} 
       />
     </>

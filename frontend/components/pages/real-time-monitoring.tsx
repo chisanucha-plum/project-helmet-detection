@@ -1,7 +1,19 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { AlertCircle, Camera, Clock, Eye, EyeOff, RotateCw } from "lucide-react"
+import type React from "react"
+import {
+  AlertCircle,
+  AlertTriangle,
+  BikeIcon,
+  Camera,
+  CheckCircle,
+  Clock,
+  Eye,
+  EyeOff,
+  RotateCw,
+  Users,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRealTimeDetections } from "@/hooks/useRealTimeDetections"
@@ -9,25 +21,23 @@ import { useLanguage } from "@/hooks/useLanguage"
 import { getStreamUrl } from "@/services/helmet-detection.service"
 import { VideoStream } from "@/components/real-time/VideoStream"
 import { DetectionList } from "@/components/real-time/DetectionList"
-import { AlertTriangle, BikeIcon, CheckCircle, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import type { DetectionResult } from "@/types/detection.types"
 
 function NowClock() {
-  const [isMounted, setIsMounted] = useState(false)
   const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
-    setIsMounted(true)
     setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  if (!isMounted || !now) return <span suppressHydrationWarning>--:--:--</span>
+  if (!now) return <span suppressHydrationWarning>--:--:--</span>
   return <>{now.toLocaleTimeString("th-TH")}</>
 }
 
-function StatsCards({ detections, isLoading, t }: { detections: any[]; isLoading: boolean; t: (key: string) => string }) {
+function StatsCards({ detections, isLoading, t }: { detections: DetectionResult[]; isLoading: boolean; t: (key: string) => string }) {
   const stats = useMemo(() => {
     const violations = detections.filter((d) => d.helmetStatus === "not-wearing").length
     const total = detections.length
@@ -46,7 +56,7 @@ function StatsCards({ detections, isLoading, t }: { detections: any[]; isLoading
   )
 }
 
-function StatCard({ icon: Icon, label, value, bgColor, iconColor }: { icon: any; label: string; value: any; bgColor: string; iconColor: string }) {
+function StatCard({ icon: Icon, label, value, bgColor, iconColor }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; bgColor: string; iconColor: string }) {
   return (
     <Card>
       <CardContent className="p-4">
@@ -125,9 +135,8 @@ export function RealTimeMonitoring() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <VideoStream 
-                mjpegUrl={mjpegUrl} 
-                isRecording={isRecording} 
+              <VideoStream
+                mjpegUrl={mjpegUrl}
               />
             </CardContent>
           </Card>
@@ -171,5 +180,3 @@ export function RealTimeMonitoring() {
     </div>
   )
 }
-
-
