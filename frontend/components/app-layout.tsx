@@ -1,16 +1,17 @@
 "use client"
 
 import { ErrorBoundary } from "@/components/error-boundary"
-import { getCurrentUser } from "@/app/api/auth"
+import { ApiError, getCurrentUser, refreshAccessToken } from "@/lib/api/auth"
+import type { CurrentUserResponse } from "@/lib/api/auth"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import {
   getStoredAccessToken,
   getStoredUserRole,
+  setStoredAccessToken,
   setStoredCurrentUser,
 } from "@/stores/auth-store"
-import { usePathname } from "next/navigation"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useState } from "react"
 
@@ -70,28 +71,41 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     let cancelled = false
 
+    const applyCurrentUser = (currentUser: CurrentUserResponse) => {
+      setStoredCurrentUser({
+        role: currentUser.role,
+        email: currentUser.email,
+        fullName: currentUser.full_name,
+        username: currentUser.username,
+      })
+      enforceRouteAccess(currentUser.role, pathname)
+    }
+
     const syncCurrentUser = async () => {
       const token = getStoredAccessToken()
       if (!token) return
 
+      let currentUser: CurrentUserResponse
       try {
-        const currentUser = await getCurrentUser(token)
-        if (cancelled) return
-
-        setStoredCurrentUser({
-          role: currentUser.role,
-          email: currentUser.email,
-          fullName: currentUser.full_name,
-          username: currentUser.username,
-        })
-        enforceRouteAccess(currentUser.role, pathname)
+        currentUser = await getCurrentUser(token)
       } catch (error: unknown) {
-        // แสดง error ว่า token หมดอายุ
-        if (error instanceof Error && error.message.includes("401")) {
-          console.warn("Access token expired - please login again")
+        // Keep existing local cache for network/other errors (offline, server down)
+        if (!(error instanceof ApiError) || error.status !== 401) return
+
+        // Access token expired — rotate tokens via refresh endpoint and retry once.
+        // If the refresh itself fails, the session is truly over (user must log in again).
+        try {
+          const tokens = await refreshAccessToken()
+          setStoredAccessToken(tokens.access_token)
+          currentUser = await getCurrentUser(tokens.access_token)
+        } catch (refreshError: unknown) {
+          console.warn("Session refresh failed - please login again:", refreshError)
+          return
         }
-        // Keep existing local cache when sync fails (offline / expired token)
       }
+
+      if (cancelled) return
+      applyCurrentUser(currentUser)
     }
 
     const onFocus = () => {
@@ -156,7 +170,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <Header onMenuClick={toggleSidebar} sidebarCollapsed={sidebarCollapsed} isMobile={isMobile} />
+          <Header onMenuClick={toggleSidebar} />
           <main className="flex-1 overflow-auto p-4 sm:p-6">
             <ErrorBoundary>{children}</ErrorBoundary>
           </main>

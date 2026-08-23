@@ -2,19 +2,17 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { getCurrentUser, loginWithApi } from "@/app/api/auth"
-import { setStoredCurrentUser } from "@/stores/auth-store"
+import { getCurrentUser, loginWithApi } from "@/lib/api/auth"
+import { setStoredAccessToken, setStoredCurrentUser } from "@/stores/auth-store"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} 
-from "@/components/ui/card"
+} from "@/components/ui/card"
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "./field"
@@ -29,8 +27,7 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
-  const { language, setLang } = useLanguage("en")
-  const { t } = useLanguage("en")
+  const { language, setLang, t } = useLanguage("en")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -47,7 +44,7 @@ export function LoginForm({
       const appRole = currentUser.role
       const userName = currentUser.full_name || currentUser.username || currentUser.email || "User"
 
-      localStorage.setItem("token", response.access_token)
+      setStoredAccessToken(response.access_token)
       setStoredCurrentUser({
         role: appRole,
         email: currentUser.email || email,
@@ -77,7 +74,6 @@ export function LoginForm({
           <div className="flex justify-center">
             <img src="/icon.png" alt="KMUT logo" className="h-30 w-30 object-contain" />
           </div>
-          <CardTitle></CardTitle>
           <CardDescription className="text-center text-sm font-bold leading-none  ">
             {t("login.title")}
           </CardDescription>
@@ -139,9 +135,6 @@ export function LoginForm({
                 >
                   {t("buttons.loginWithGoogle")}
                 </Button>
-                <FieldDescription className="text-center">
-                  {/* Don&apos;t have an account? <a href="#">Sign up</a> */}
-                </FieldDescription>
               </Field>
             </FieldGroup>
           </form>
