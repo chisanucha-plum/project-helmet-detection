@@ -22,7 +22,6 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { getStoredUserRole } from "@/stores/auth-store"
 import { BellRing, Camera, Save, Settings2, ShieldCheck, UserRound } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
 type UserRole = "admin" | "security" | "user"

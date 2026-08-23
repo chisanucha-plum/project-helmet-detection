@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle, BikeIcon, Download, Shield, TrendingDown, TrendingUp, Users } from "lucide-react"
-import { useState, useMemo, memo } from "react"
+import { useState, useMemo } from "react"
 import {
   Area,
   AreaChart,
@@ -34,18 +34,6 @@ const tooltipStyle = {
   border: "1px solid hsl(var(--border))",
   borderRadius: "8px",
 }
-
-// Memoized chart components to prevent unnecessary re-renders
-const MemoizedAreaChart = memo(AreaChart)
-const MemoizedLineChart = memo(LineChart)
-const MemoizedPieChart = memo(PieChart)
-const MemoizedCartesianGrid = memo(CartesianGrid)
-const MemoizedXAxis = memo(XAxis)
-const MemoizedYAxis = memo(YAxis)
-const MemoizedTooltip = memo(Tooltip)
-const MemoizedArea = memo(Area)
-const MemoizedLine = memo(Line)
-const MemoizedPie = memo(Pie)
 
 export function Dashboard() {
   const { t } = useLanguage("en")
@@ -202,16 +190,16 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <MemoizedAreaChart data={currentData}>
-                <MemoizedCartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <MemoizedXAxis
+              <AreaChart data={currentData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
                   dataKey={chartType === "hourly" ? "hour" : "day"}
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
-                <MemoizedYAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <MemoizedTooltip contentStyle={tooltipStyle} />
-                <MemoizedArea
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area
                   type="monotone"
                   dataKey="violations"
                   stroke="hsl(var(--chart-3))"
@@ -219,7 +207,7 @@ export function Dashboard() {
                   fillOpacity={0.3}
                   name="การกระทำผิด"
                 />
-                <MemoizedArea
+                <Area
                   type="monotone"
                   dataKey="total"
                   stroke="hsl(var(--chart-1))"
@@ -227,7 +215,7 @@ export function Dashboard() {
                   fillOpacity={0.1}
                   name="ทั้งหมด"
                 />
-              </MemoizedAreaChart>
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -239,8 +227,8 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <MemoizedPieChart>
-                <MemoizedPie
+              <PieChart>
+                <Pie
                   data={helmetComplianceData}
                   cx="50%"
                   cy="50%"
@@ -252,9 +240,9 @@ export function Dashboard() {
                   {helmetComplianceData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
-                </MemoizedPie>
-                <MemoizedTooltip contentStyle={tooltipStyle} />
-              </MemoizedPieChart>
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} />
+              </PieChart>
             </ResponsiveContainer>
             <div className="flex justify-center gap-6 mt-4">
               {helmetComplianceData.map((item, index) => (
@@ -278,16 +266,16 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={250}>
-            <MemoizedLineChart data={currentData}>
-              <MemoizedCartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <MemoizedXAxis
+            <LineChart data={currentData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
                 dataKey={chartType === "hourly" ? "hour" : "day"}
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
               />
-              <MemoizedYAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={[60, 100]} />
-              <MemoizedTooltip contentStyle={tooltipStyle} />
-              <MemoizedLine
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={[60, 100]} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line
                 type="monotone"
                 dataKey="compliance"
                 stroke="hsl(var(--chart-1))"
@@ -295,7 +283,7 @@ export function Dashboard() {
                 dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2, r: 4 }}
                 name="อัตราการปฏิบัติตาม (%)"
               />
-            </MemoizedLineChart>
+            </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>

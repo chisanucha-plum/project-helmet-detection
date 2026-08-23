@@ -23,6 +23,16 @@ export type CurrentUserResponse = {
     last_login: string | null
 }
 
+/** Error carrying the HTTP status so callers can react to specific codes (e.g. 401). */
+export class ApiError extends Error {
+    status: number
+
+    constructor(message: string, status: number) {
+        super(message)
+        this.status = status
+    }
+}
+
 export async function loginWithApi(payload: LoginRequest): Promise<LoginResponse> {
     const res = await fetch(`${API_BASE_URL}/user/login`, {
         method: "POST",
@@ -34,7 +44,7 @@ export async function loginWithApi(payload: LoginRequest): Promise<LoginResponse
 
     if (!res.ok) {
         const message = await safeReadErrorMessage(res)
-        throw new Error(message || "Login failed")
+        throw new ApiError(message || "Login failed", res.status)
     }
 
     return (await res.json()) as LoginResponse
@@ -51,7 +61,7 @@ export async function getCurrentUser(accessToken: string): Promise<CurrentUserRe
 
     if (!res.ok) {
         const message = await safeReadErrorMessage(res)
-        throw new Error(message || "Failed to fetch current user")
+        throw new ApiError(message || "Failed to fetch current user", res.status)
     }
 
     return (await res.json()) as CurrentUserResponse
@@ -68,10 +78,22 @@ export async function refreshAccessToken(): Promise<{ access_token: string; refr
 
     if (!res.ok) {
         const message = await safeReadErrorMessage(res)
-        throw new Error(message || "Failed to refresh token")
+        throw new ApiError(message || "Failed to refresh token", res.status)
     }
 
     return (await res.json()) as { access_token: string; refresh_token: string }
+}
+
+/** Clear the refresh-token cookie on the backend (best effort). */
+export async function logoutApi(): Promise<void> {
+    try {
+        await fetch(`${API_BASE_URL}/user/logout`, {
+            method: "POST",
+            credentials: "include",
+        })
+    } catch {
+        // Network errors on logout are non-fatal; local state is already cleared.
+    }
 }
 
 async function safeReadErrorMessage(res: Response): Promise<string | null> {

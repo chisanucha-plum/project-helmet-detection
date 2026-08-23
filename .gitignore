@@ -9,19 +9,19 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
-dist/
-downloads/
-eggs/
+/dist/
+/downloads/
+/eggs/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -61,21 +61,23 @@ cover/
 *.pth
 *.onnx
 *.weights
-runs/
-checkpoints/
+/runs/
+/checkpoints/
 
 # Data (untracked large/local)
-datasets/
-data/
-results/
-snapshots/
+/datasets/
+/data/
+/results/
+/snapshots/
+/src/case/
+/src/image/
 # FastAPI / Env
 .env
 uvicorn.log
 backend/frames_storage/
-frames_storage/
+/frames_storage/
 backend/train/
-train
+/train
 
 # Configuration files (local/secrets)
 config.development.json

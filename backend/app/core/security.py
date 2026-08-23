@@ -8,7 +8,6 @@ from jose import ExpiredSignatureError, JWTError, jwt
 
 from app.configuration import Configuration
 from app.core.exceptions import TokenDecodeError
-from app.schemas.user import UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user/login")
 
@@ -21,7 +20,7 @@ REFRESH_TOKEN_EXPIRY_DAYS = 30
 def set_refresh_token_cookie(response: Response, refresh_token: str) -> None:
     """Set secure refresh token cookie with consistent settings."""
     response.set_cookie(
-        key=config.refresh_token_cookie.value,
+        key=config.refresh_token_cookie.cookie_name,
         value=refresh_token,
         max_age=config.refresh_token_cookie.max_age,
         httponly=config.refresh_token_cookie.httponly,
@@ -30,6 +29,21 @@ def set_refresh_token_cookie(response: Response, refresh_token: str) -> None:
         path=config.refresh_token_cookie.path,
         domain=config.refresh_token_cookie.domain,
     )
+
+
+def clear_refresh_token_cookies(response: Response) -> None:
+    """Delete the refresh token cookie and the legacy-named one if different."""
+    cookie = config.refresh_token_cookie
+    common = dict(
+        httponly=cookie.httponly,
+        secure=cookie.secure,
+        samesite=cookie.samesite,
+        path=cookie.path,
+        domain=cookie.domain,
+    )
+    response.delete_cookie(key=cookie.cookie_name, **common)
+    if cookie.legacy_cookie_name != cookie.cookie_name:
+        response.delete_cookie(key=cookie.legacy_cookie_name, **common)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
