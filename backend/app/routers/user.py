@@ -5,13 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.configuration import Configuration
-from app.core import security
 from app.core.auth import get_any_user
 from app.core.error_handlers import handle_db_errors
 from app.core.security import (
+    clear_refresh_token_cookies,
     create_access_token,
     create_refresh_token,
-    decode_token,
     set_refresh_token_cookie,
     verify_refresh_token,
 )
@@ -46,12 +45,9 @@ def register(
     """Register a new user."""
     auth_service = AuthService(db)
     db_user = auth_service.create_user(user)
-    access_token = security.create_access_token(
-        data={"sub": db_user.id, "role": db_user.role}
-    )
-    refresh_token = security.create_refresh_token(
-        data={"sub": db_user.id, "role": db_user.role}
-    )
+    token_data = {"sub": db_user.id, "role": db_user.role}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
 
     set_refresh_token_cookie(response, refresh_token)
     return Token(
@@ -70,12 +66,9 @@ def login(
     """Login user and return access token."""
     auth_service = AuthService(db)
     user_obj = auth_service.authenticate_user(data.email, data.password)
-    access_token = security.create_access_token(
-        data={"sub": user_obj.id, "role": user_obj.role}
-    )
-    refresh_token = security.create_refresh_token(
-        data={"sub": user_obj.id, "role": user_obj.role}
-    )
+    token_data = {"sub": user_obj.id, "role": user_obj.role}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
 
     set_refresh_token_cookie(response, refresh_token)
     return LoginResponse(
@@ -122,16 +115,22 @@ def refresh_access_token(
 ) -> Token:
     """Refresh access token using refresh token."""
     refresh_token = request.cookies.get(
-        config.refresh_token_cookie.value
-    ) or request.cookies.get(config.refresh_token_cookie.key)
+        config.refresh_token_cookie.cookie_name
+    ) or request.cookies.get(config.refresh_token_cookie.legacy_cookie_name)
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing",
         )
 
-    _payload = verify_refresh_token(refresh_token)
-    user_id = decode_token(refresh_token)
+    payload = verify_refresh_token(refresh_token)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
     role = db.query(User.role).filter(User.id == user_id).scalar()
 
     if not role:
@@ -154,26 +153,7 @@ def refresh_access_token(
 @handle_db_errors
 def logout(response: Response) -> dict[str, str]:
     """Logout user by clearing refresh token cookie."""
-    response.delete_cookie(
-        key=config.refresh_token_cookie.value,
-        httponly=config.refresh_token_cookie.httponly,
-        secure=config.refresh_token_cookie.secure,
-        samesite=config.refresh_token_cookie.samesite,
-        path=config.refresh_token_cookie.path,
-        domain=config.refresh_token_cookie.domain,
-    )
-    # delete legacy cookie name if it differs
-    if config.refresh_token_cookie.key and (
-        config.refresh_token_cookie.key != config.refresh_token_cookie.value
-    ):
-        response.delete_cookie(
-            key=config.refresh_token_cookie.key,
-            httponly=config.refresh_token_cookie.httponly,
-            secure=config.refresh_token_cookie.secure,
-            samesite=config.refresh_token_cookie.samesite,
-            path=config.refresh_token_cookie.path,
-            domain=config.refresh_token_cookie.domain,
-        )
+    clear_refresh_token_cookies(response)
     return {"message": "Successfully logged out"}
 
 

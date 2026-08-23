@@ -57,52 +57,6 @@ class AuthService:
 
         return username
 
-    def promote_user_to_admin(self, user_id: str) -> User:
-        """Promote user to admin role by ID.
-
-        Args:
-            user_id: User ID to promote
-
-        Returns:
-            Updated user object
-
-        Raises:
-            ServiceError: If user not found
-        """
-        user = self.get_user_by_id(user_id)
-        if not user:
-            logger.warning(f"Promotion attempted for non-existent user: {user_id}")
-            raise ServiceError(f"User not found: {user_id}")
-
-        user.role = UserRole.ADMIN
-        self.db.commit()
-        self.db.refresh(user)
-        logger.info(f"User {user_id} promoted to admin role")
-        return user
-
-    def promote_user_by_email_to_admin(self, email: str) -> User:
-        """Promote user to admin role by email.
-
-        Args:
-            email: Email address of user to promote
-
-        Returns:
-            Updated user object
-
-        Raises:
-            ServiceError: If user not found
-        """
-        user = self.get_user_by_email(email)
-        if not user:
-            logger.warning(f"Promotion attempted for non-existent email: {email}")
-            raise ServiceError(f"User not found: {email}")
-
-        user.role = UserRole.ADMIN
-        self.db.commit()
-        self.db.refresh(user)
-        logger.info(f"User {email} promoted to admin role")
-        return user
-
     def create_user(self, user: UserCreate) -> User:
         """Create new user account.
 
@@ -216,22 +170,6 @@ class AuthService:
             raise ServiceError("User account is disabled")
 
         return user_obj
-
-    def check_role(self, user_obj: User, allowed_roles: list[UserRole]) -> None:
-        """Check if user has required role.
-
-        Args:
-            user_obj: User object to check
-            allowed_roles: List of allowed roles
-
-        Raises:
-            ServiceError: If user role not in allowed list
-        """
-        if user_obj.role not in allowed_roles:
-            logger.warning(
-                f"Authorization failed for user {user_obj.id}: insufficient role"
-            )
-            raise ServiceError("Insufficient permissions for this operation")
 
     def req_password_reset(self, email: str) -> None:
         """Request password reset by creating reset token for user.
