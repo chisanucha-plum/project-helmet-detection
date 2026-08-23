@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -9,26 +8,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.configuration import Configuration
 from app.core.exceptions import ServiceError
 from app.database.database import init_database
 from app.routers.router import get_router
 from app.services.frame_storage import frame_storage
 
-# Configuration
-CORS_ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:3001,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:3001"
-).split(",")
-
-FRAME_RETENTION_DAYS = int(os.getenv("FRAME_RETENTION_DAYS", "7"))
-CLEANUP_INTERVAL_HOURS = 24
+_server_config = Configuration.get_config().server
+CORS_ALLOWED_ORIGINS = _server_config.cors_allowed_origins
+FRAME_RETENTION_DAYS = _server_config.frame_retention_days
+CLEANUP_INTERVAL_HOURS = _server_config.cleanup_interval_hours
 
 # Logging
 logging.basicConfig(level=logging.WARNING, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def periodic_frame_cleanup():
+async def periodic_frame_cleanup() -> None:
     """Periodically clean up old frames."""
     while True:
         await asyncio.sleep(CLEANUP_INTERVAL_HOURS * 3600)
@@ -36,8 +32,8 @@ async def periodic_frame_cleanup():
             deleted = frame_storage.cleanup_old_frames(FRAME_RETENTION_DAYS)
             if deleted > 0:
                 logger.info(f"Frame cleanup: deleted {deleted} old frames")
-        except Exception as e:
-            logger.error(f"Frame cleanup failed: {e}")
+        except Exception:
+            logger.exception("Frame cleanup failed")
 
 
 @asynccontextmanager
@@ -48,7 +44,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     - Startup: Initialize database tables, start frame cleanup task
     - Shutdown: Cancel frame cleanup task
     """
-    cleanup_task = None
+    cleanup_task: asyncio.Task[None] | None = None
 
     try:
         logger.info("Initializing database")
@@ -56,7 +52,9 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Database initialized successfully")
 
         cleanup_task = asyncio.create_task(periodic_frame_cleanup())
-        logger.info(f"Frame cleanup task started (retention: {FRAME_RETENTION_DAYS} days)")
+        logger.info(
+            f"Frame cleanup task started (retention: {FRAME_RETENTION_DAYS} days)"
+        )
 
     except SQLAlchemyError as e:
         logger.warning(f"Database initialization skipped: {e}")
@@ -76,14 +74,17 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.exception_handler(ServiceError)
-async def service_error_handler(request: Request, exc: ServiceError):
+async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
     """Map ServiceError to appropriate HTTP status codes."""
     msg = str(exc)
     status_map = {
         "Invalid credentials": status.HTTP_401_UNAUTHORIZED,
         "User account is disabled": status.HTTP_403_FORBIDDEN,
     }
-    code = next((code for key, code in status_map.items() if key in msg), status.HTTP_400_BAD_REQUEST)
+    code = next(
+        (code for key, code in status_map.items() if key in msg),
+        status.HTTP_400_BAD_REQUEST,
+    )
     return JSONResponse(status_code=code, content={"detail": msg})
 
 

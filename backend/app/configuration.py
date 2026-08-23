@@ -16,9 +16,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-# ── Detection settings ───────────────────────────────────────────────────────
-
-
 @dataclass
 class DetectionConfig:
     """Configuration for motorcycle and helmet detection."""
@@ -51,9 +48,6 @@ class DetectionConfig:
         )
 
 
-# ── Model settings ───────────────────────────────────────────────────────────
-
-
 @dataclass
 class ModelSettingsConfig:
     moto_model_path: str
@@ -69,9 +63,6 @@ class ModelSettingsConfig:
             helmet_conf_threshold=data["helmet_conf_threshold"],
             jpeg_quality=data.get("jpeg_quality", 60),
         )
-
-
-# ── Application settings ─────────────────────────────────────────────────────
 
 
 @dataclass
@@ -106,9 +97,6 @@ class ApplicationSettingsConfig:
         )
 
 
-# ── Database settings ────────────────────────────────────────────────────────
-
-
 @dataclass
 class PostgresConfig:
     host: str
@@ -128,13 +116,34 @@ class PostgresConfig:
         )
 
 
-# ── Auth settings ────────────────────────────────────────────────────────────
+@dataclass
+class ServerConfig:
+    """HTTP-level settings (CORS origins, maintenance job cadence) from environment."""
+
+    cors_allowed_origins: list[str]
+    frame_retention_days: int
+    cleanup_interval_hours: int
+
+    @staticmethod
+    def from_env() -> "ServerConfig":
+        return ServerConfig(
+            cors_allowed_origins=os.environ.get(
+                "ALLOWED_ORIGINS",
+                "http://localhost:3000,"
+                "http://localhost:3001,"
+                "http://localhost:8000,"
+                "http://127.0.0.1:3000,"
+                "http://127.0.0.1:3001",
+            ).split(","),
+            frame_retention_days=int(os.environ.get("FRAME_RETENTION_DAYS", "7")),
+            cleanup_interval_hours=int(os.environ.get("CLEANUP_INTERVAL_HOURS", "24")),
+        )
 
 
 @dataclass
 class RefreshTokenCookie:
-    key: str
-    value: str
+    cookie_name: str
+    legacy_cookie_name: str
     httponly: bool
     secure: bool
     max_age: int
@@ -145,8 +154,8 @@ class RefreshTokenCookie:
     @staticmethod
     def from_dict(obj: Any) -> "RefreshTokenCookie":
         return RefreshTokenCookie(
-            key=str(obj.get("key")),
-            value=str(obj.get("value")),
+            cookie_name=str(obj.get("cookie_name")),
+            legacy_cookie_name=str(obj.get("legacy_cookie_name", "")),
             httponly=bool(obj.get("httponly", False)),
             secure=bool(obj.get("secure", False)),
             samesite=str(obj.get("samesite", "lax")),
@@ -171,14 +180,12 @@ class Key:
         )
 
 
-# ── Root config ──────────────────────────────────────────────────────────────
-
-
 @dataclass
 class Configuration:
     model_settings: ModelSettingsConfig
     application_settings: ApplicationSettingsConfig
     postgres: PostgresConfig
+    server: ServerConfig
     refresh_token_cookie: RefreshTokenCookie
     key: Key
     detection: DetectionConfig
@@ -191,6 +198,7 @@ class Configuration:
                 data["application_settings"]
             ),
             postgres=PostgresConfig.from_env(),
+            server=ServerConfig.from_env(),
             refresh_token_cookie=RefreshTokenCookie.from_dict(
                 data["refresh_token_cookie"]
             ),

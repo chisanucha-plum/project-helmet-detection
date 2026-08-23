@@ -4,12 +4,9 @@ numpy
 opencv-python
 torch
 torchvision
-google-genai
 python-dotenv
 pydantic
 SQLAlchemy
-websockets
 psycopg2-binary
 python-jose
 bcrypt
-structlog
