@@ -48,10 +48,10 @@ function StatsCards({ detections, isLoading, t }: { detections: DetectionResult[
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard icon={BikeIcon} label={t("stats.motorcyclesDetected")} value={isLoading ? "-" : stats.total} bgColor="bg-blue-100" iconColor="text-blue-600" />
-      <StatCard icon={Users} label={t("stats.overCapacity")} value={isLoading ? "-" : stats.overCapacity} bgColor="bg-orange-100" iconColor="text-orange-600" />
-      <StatCard icon={AlertTriangle} label={t("stats.violations")} value={isLoading ? "-" : stats.violations} bgColor="bg-red-100" iconColor="text-red-600" />
-      <StatCard icon={CheckCircle} label={t("stats.complianceRate")} value={isLoading ? "-" : `${stats.compliance}%`} bgColor="bg-green-100" iconColor="text-green-600" />
+      <StatCard icon={BikeIcon} label={t("stats.motorcyclesDetected")} value={isLoading ? "-" : stats.total} bgColor="bg-info" iconColor="text-info-foreground" />
+      <StatCard icon={Users} label={t("stats.overCapacity")} value={isLoading ? "-" : stats.overCapacity} bgColor="bg-warning" iconColor="text-warning-foreground" />
+      <StatCard icon={AlertTriangle} label={t("stats.violations")} value={isLoading ? "-" : stats.violations} bgColor="bg-critical" iconColor="text-critical-foreground" />
+      <StatCard icon={CheckCircle} label={t("stats.complianceRate")} value={isLoading ? "-" : `${stats.compliance}%`} bgColor="bg-success" iconColor="text-success-foreground" />
     </div>
   )
 }
@@ -86,12 +86,12 @@ export function RealTimeMonitoring() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start justify-between gap-3">
+        <div className="bg-critical border border-critical-foreground/20 rounded-lg p-4 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-critical-foreground flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-red-900">{t("errors.errorOccurred")}</p>
-              <p className="text-sm text-red-700">{error.message}</p>
+              <p className="text-sm font-medium text-foreground">{t("errors.errorOccurred")}</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
             </div>
           </div>
           <Button size="sm" variant="outline" onClick={() => window.location.reload()} className="gap-2">
@@ -110,7 +110,7 @@ export function RealTimeMonitoring() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isRecording ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+            <div className={`w-3 h-3 rounded-full ${isRecording ? "bg-success-foreground animate-pulse" : "bg-muted-foreground/40"}`} />
             <span className="text-sm text-muted-foreground">{t("status." + (isRecording ? "running" : "stopped"))}</span>
           </div>
           <Button variant={isRecording ? "destructive" : "default"} size="sm" onClick={() => setIsRecording(!isRecording)} disabled={isLoading} className="gap-2">

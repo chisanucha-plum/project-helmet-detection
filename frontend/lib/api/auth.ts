@@ -36,6 +36,9 @@ export class ApiError extends Error {
 export async function loginWithApi(payload: LoginRequest): Promise<LoginResponse> {
     const res = await fetch(`${API_BASE_URL}/user/login`, {
         method: "POST",
+        // Required so the browser stores the cross-origin refresh-token cookie
+        // the backend sets — without it, session restore after a reload 401s.
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
         },

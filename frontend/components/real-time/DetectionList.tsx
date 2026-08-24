@@ -34,8 +34,8 @@ function DetectionItem({ detection, t }: { detection: DetectionResult; t: (key: 
           <div>
             <div className="text-xs text-muted-foreground">{detection.timestamp}</div>
             <div className="flex items-center gap-2 mt-1">
-              {detection.helmetStatus === "wearing" ? <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" /> : <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />}
-              <span className={`text-sm font-semibold truncate ${detection.helmetStatus === "wearing" ? "text-green-600" : "text-red-600"}`}>
+              {detection.helmetStatus === "wearing" ? <CheckCircle className="h-4 w-4 text-success-foreground flex-shrink-0" /> : <AlertTriangle className="h-4 w-4 text-critical-foreground flex-shrink-0" />}
+              <span className={`text-sm font-semibold truncate ${detection.helmetStatus === "wearing" ? "text-success-foreground" : "text-critical-foreground"}`}>
                 {detection.helmetStatus === "wearing" ? t("detection.wearingHelmet") : t("detection.notWearingHelmet")}
               </span>
             </div>

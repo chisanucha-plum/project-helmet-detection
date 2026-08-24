@@ -144,3 +144,5 @@ cython_debug/
 .idea
 CLAUDE.md
 .claude
+# Next.js build output
+.next/

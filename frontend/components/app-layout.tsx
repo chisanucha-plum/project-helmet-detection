@@ -25,6 +25,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // True once the first /user/me attempt after a page load has settled, so
+  // route guards do not act on the not-yet-restored (null) role.
+  const [isSessionReady, setIsSessionReady] = useState(false)
 
   const enforceRouteAccess = (role: string | null, currentPath: string) => {
     const isAdminOnlyPage = currentPath === "/dashboard"
@@ -62,14 +65,22 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [])
 
   useEffect(() => {
+    // Wait for the session restore to settle first — right after a reload the
+    // in-memory role is null even for a logged-in user.
+    if (!isSessionReady) return
     const role = getStoredUserRole()
     enforceRouteAccess(role, pathname)
-  }, [pathname, router])
+  }, [pathname, router, isSessionReady])
 
   useEffect(() => {
+    setIsSessionReady(false)
+
     if (pathname === "/") return
 
     let cancelled = false
+    // Latch that stops the 15s interval from hammering /refresh_token once the
+    // session is conclusively gone (expired cookie, rejected refresh).
+    let refreshExhausted = false
 
     const applyCurrentUser = (currentUser: CurrentUserResponse) => {
       setStoredCurrentUser({
@@ -78,12 +89,36 @@ export function AppLayout({ children }: AppLayoutProps) {
         fullName: currentUser.full_name,
         username: currentUser.username,
       })
-      enforceRouteAccess(currentUser.role, pathname)
+      // Route enforcement happens in the guard effect above, which re-runs
+      // once isSessionReady flips true.
+      setIsSessionReady(true)
+    }
+
+    /** Return an access token; after a reload the in-memory token is gone, so
+     * restore the session from the refresh-token cookie first. */
+    const ensureAccessToken = async (): Promise<string | null> => {
+      const existing = getStoredAccessToken()
+      if (existing) return existing
+      if (refreshExhausted) return null
+
+      try {
+        const tokens = await refreshAccessToken()
+        setStoredAccessToken(tokens.access_token)
+        return tokens.access_token
+      } catch (error: unknown) {
+        // Definitive rejection — no valid refresh cookie. Mark settled so the
+        // route guard can act; network errors stay retryable on later ticks.
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          refreshExhausted = true
+          if (!cancelled) setIsSessionReady(true)
+        }
+        return null
+      }
     }
 
     const syncCurrentUser = async () => {
-      const token = getStoredAccessToken()
-      if (!token) return
+      const token = await ensureAccessToken()
+      if (!token || cancelled) return
 
       let currentUser: CurrentUserResponse
       try {
@@ -100,6 +135,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           currentUser = await getCurrentUser(tokens.access_token)
         } catch (refreshError: unknown) {
           console.warn("Session refresh failed - please login again:", refreshError)
+          refreshExhausted = true
+          if (!cancelled) setIsSessionReady(true)
           return
         }
       }

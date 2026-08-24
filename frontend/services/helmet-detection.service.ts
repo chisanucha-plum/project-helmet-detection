@@ -7,6 +7,8 @@ import {
   DetectionEvent,
   DetectionHistoryItem,
   DetectionResult,
+  HelmetStats,
+  StatsBucketSize,
 } from "@/types/detection.types"
 import { createAuthHeadersFromStore } from "@/stores/auth-store"
 import { API_BASE_URL, CAMERA_NAME } from "@/lib/api/config"
@@ -49,6 +51,31 @@ export async function fetchHelmetHistory(limit: number = 50): Promise<DetectionR
   const data: DetectionHistoryItem[] = await response.json()
 
   return data.map((item) => toDetectionResult(item, item.id, item.timestamp ?? ""))
+}
+
+/**
+ * Fetch aggregated detection statistics for an inclusive date range
+ * @param fromDate Range start ISO date "YYYY-MM-DD"
+ * @param toDate Range end ISO date "YYYY-MM-DD"
+ * @param bucket Time-series granularity
+ * @returns Aggregated stats with zero-filled series and violation breakdown
+ */
+export async function fetchHelmetStats(
+  fromDate: string,
+  toDate: string,
+  bucket: StatsBucketSize = "day"
+): Promise<HelmetStats> {
+  const params = new URLSearchParams({ from: fromDate, to: toDate, bucket })
+  const headers = createAuthHeadersFromStore()
+  const response = await fetch(`${API_BASE_URL}/helmet/stats?${params}`, {
+    headers,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch helmet stats: ${response.status}`)
+  }
+
+  return response.json()
 }
 
 /**

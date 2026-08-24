@@ -88,7 +88,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       ? "text-blue-600"
       : role === "security"
         ? "text-green-600"
-        : "text-gray-600"
+        : "text-muted-foreground"
 
   const visibleNavItems = useMemo(() => {
     const items = getNavItems(t)
@@ -117,7 +117,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
   return (
     <div
       className={cn(
-        "bg-white border-r border-gray-200 shadow-md flex flex-col transition-all duration-300 ease-in-out h-full",
+        "bg-sidebar border-r border-sidebar-border shadow-md flex flex-col transition-all duration-300 ease-in-out h-full",
         isMobile 
           ? "w-48 sm:w-56" 
           : collapsed 
@@ -126,7 +126,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       )}
     >
       {/* Header */}
-      <div className="border-b border-gray-200 transition-all duration-300 p-3">
+      <div className="border-b border-sidebar-border transition-all duration-300 p-3">
         {/* Expanded mode */}
         {(!collapsed || isMobile) && (
           <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
                 variant="ghost"
                 size="sm"
                 onClick={onNavigate}
-                className="h-8 w-8 sm:h-10 sm:w-10 p-0 hover:bg-gray-100 flex-shrink-0"
+                className="h-8 w-8 sm:h-10 sm:w-10 p-0 hover:bg-muted flex-shrink-0"
               >
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
@@ -185,9 +185,9 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
                   // when collapsed (desktop) center horizontally and remove extra horizontal padding
                   collapsed && !isMobile ? "justify-center text-center px-0 py-1.5" : "justify-start text-left px-1.5 sm:px-2",
                   isActive
-                    ? // Enhanced orange color scheme for better visibility
-                    "bg-orange-500 text-white hover:bg-orange-600 shadow-sm"
-                    : "text-sidebar-foreground hover:bg-gray-100 hover:text-gray-900",
+                    ? // Toned-down orange accent, themed via tokens for dark mode
+                    "bg-nav-active text-nav-active-foreground hover:bg-nav-active-hover shadow-sm"
+                    : "text-sidebar-foreground hover:bg-muted hover:text-sidebar-foreground",
                 )}
                 onClick={() => handleNavigation(item.path)}
               >
@@ -213,12 +213,12 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
 
       {/* Status Indicator */}
       {(!collapsed || isMobile) && (
-        <div className="p-3 sm:p-4 border-t border-gray-200">
-          <div className="rounded-md border border-gray-300 bg-transparent p-2">
-            <p className="truncate text-[11px] font-semibold text-gray-600  decoration-blue-500 underline-offset-2">
+        <div className="p-3 sm:p-4 border-t border-sidebar-border">
+          <div className="rounded-md border border-border bg-transparent p-2">
+            <p className="truncate text-[11px] font-semibold text-muted-foreground decoration-blue-500 underline-offset-2">
               {email ?? "-"}
             </p>
-            <div className="mt-1.5 inline-flex items-center rounded-sm border border-gray-300 bg-white px-2 py-0.5">
+            <div className="mt-1.5 inline-flex items-center rounded-sm border border-border bg-card px-2 py-0.5">
               <span className={cn("text-xs font-semibold lowercase", roleColorClass)}>{roleDisplay}</span>
             </div>
           </div>
@@ -226,7 +226,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
       )}
 
       {/* Bottom Navigation */}
-      <div className="p-3 sm:p-4 border-t border-gray-200">
+      <div className="p-3 sm:p-4 border-t border-sidebar-border">
         <div className="space-y-1">
           {visibleBottomNavItems.map((item: NavItem) => {
             const Icon = item.icon
@@ -242,8 +242,8 @@ export function Sidebar({ collapsed, onToggle, onNavigate, isMobile = false }: S
                   collapsed && !isMobile ? "justify-center text-center px-0" : "justify-start text-left px-2",
                   isActive
                     ? // Enhanced orange color scheme for bottom navigation
-                    "bg-orange-500 text-white hover:bg-orange-600 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                    "bg-nav-active text-nav-active-foreground hover:bg-nav-active-hover shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-sidebar-foreground",
                 )}
                 onClick={() => handleNavigation(item.path)}
               >

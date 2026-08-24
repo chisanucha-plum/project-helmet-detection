@@ -34,8 +34,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="th">
+    <html lang="th" suppressHydrationWarning>
       <head>
+        {/* Apply saved theme before first paint to avoid a light-mode flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("theme")==="dark"){document.documentElement.classList.add("dark")}}catch(e){}`,
+          }}
+        />
         {/* Load react-scan in development only so it doesn't run in production */}
         {process.env.NODE_ENV === 'development' && (
           <script

@@ -2,14 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
-import os
-
-# Add backend path
-backend_path = Path(__file__).parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
-os.chdir(str(backend_path))
+from unittest.mock import patch
 
 import cv2
 import numpy as np
