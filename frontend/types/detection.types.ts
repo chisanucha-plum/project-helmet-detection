@@ -36,3 +36,38 @@ export interface UseRealTimeDetectionsReturn {
   isRecording: boolean
   setIsRecording: (value: boolean) => void
 }
+
+/** Aggregated counts for one time bucket from GET /helmet/stats */
+export interface StatsBucket {
+  label: string  // "2026-08-23" (day) or "2026-08-23 14" (hour)
+  total: number
+  violations: number
+}
+
+export interface ViolationTypeCount {
+  type: "no_helmet" | "over_capacity"
+  count: number
+}
+
+export interface StatsSummary {
+  total_detections: number
+  total_violations: number
+  helmet_on: number
+  helmet_off: number
+  excess_passengers: number
+  compliance_percent: number
+}
+
+/** Response shape of GET /helmet/stats */
+export interface HelmetStats {
+  range_from: string
+  range_to: string
+  bucket_size: "hour" | "day"
+  summary: StatsSummary
+  series: StatsBucket[]
+  violation_types: ViolationTypeCount[]
+}
+
+export type StatsBucketSize = "hour" | "day"
+
+export type StatsTimeRange = "today" | "week" | "month"

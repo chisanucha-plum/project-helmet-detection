@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, BikeIcon, Download, Shield, TrendingDown, TrendingUp, Users } from "lucide-react"
-import { useState, useMemo } from "react"
+import { AlertTriangle, BikeIcon, Download, Shield, TrendingDown, TrendingUp, Users, type LucideIcon } from "lucide-react"
+import { useState, useMemo, type ReactNode } from "react"
 import {
   Area,
   AreaChart,
@@ -21,32 +21,169 @@ import {
   YAxis,
 } from "recharts"
 
-import { helmetComplianceData, hourlyData, violationTypeData, weeklyData } from "@/mocks/dashboardMocks"
+import { useHelmetStats } from "@/hooks/useHelmetStats"
 import { useLanguage } from "@/hooks/useLanguage"
-
-// TODO: Replace mock data with real backend API calls
-// Current implementation uses mock data from dashboardMocks.ts
-// Wire to /helmet/history endpoint for real statistics when ready
+import type { StatsBucketSize, StatsTimeRange } from "@/types/detection.types"
 
 // Memoize tooltip style to prevent recreation on every render
 const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
+  backgroundColor: "var(--popover)",
+  border: "1px solid var(--border)",
   borderRadius: "8px",
+}
+
+/** Percent change vs the previous period; null when not computable */
+function percentChange(current: number, previous: number): number | null {
+  if (previous === 0) return null
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+/** "2026-08-23 14" -> "14:00", "2026-08-23" -> "23/08" */
+function formatBucketLabel(label: string, bucketSize: StatsBucketSize): string {
+  if (bucketSize === "hour") return `${label.slice(11, 13)}:00`
+  return `${label.slice(8, 10)}/${label.slice(5, 7)}`
+}
+
+interface TrendIndicatorProps {
+  delta: number | null
+  /** Direction of change considered good for this metric */
+  goodWhen: "up" | "down"
+  vsLabel: string
+}
+
+function TrendIndicator({ delta, goodWhen, vsLabel }: TrendIndicatorProps) {
+  if (delta === null || delta === 0) return null
+  const isUp = delta > 0
+  const isGood = goodWhen === "up" ? isUp : !isUp
+  const colorClass = isGood ? "text-success-foreground" : "text-critical-foreground"
+  const Icon = isUp ? TrendingUp : TrendingDown
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      <Icon className={`h-4 w-4 ${colorClass}`} />
+      <span className={`text-sm ${colorClass}`}>
+        {isUp ? "+" : ""}{delta}%{" "}
+        <span className="text-muted-foreground">{vsLabel}</span>
+      </span>
+    </div>
+  )
+}
+
+interface StatCardProps {
+  label: string
+  value: string | number
+  trend?: ReactNode
+  icon: LucideIcon
+  iconBgClass: string
+  iconColorClass: string
+}
+
+function StatCard({ label, value, trend, icon: Icon, iconBgClass, iconColorClass }: StatCardProps) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            <p className="text-3xl font-bold text-foreground">{value}</p>
+            {trend}
+          </div>
+          <div className={`w-12 h-12 ${iconBgClass} rounded-lg flex items-center justify-center`}>
+            <Icon className={`h-6 w-6 ${iconColorClass}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function Dashboard() {
   const { t } = useLanguage("en")
-  const [timeRange, setTimeRange] = useState("today")
-  const [chartType, setChartType] = useState("hourly")
+  const [timeRange, setTimeRange] = useState<StatsTimeRange>("today")
+  const { stats, previousStats, error, refetch } = useHelmetStats(timeRange)
 
-  const currentData = useMemo(() => chartType === "hourly" ? hourlyData : weeklyData, [chartType])
+  const summary = stats?.summary ?? null
+  const prev = previousStats?.summary ?? null
 
-  const totalViolations = currentData.reduce((sum, item) => sum + item.violations, 0)
-  const totalDetections = currentData.reduce((sum, item) => sum + item.total, 0)
-  const averageCompliance = Math.round(currentData.reduce((sum, item) => sum + item.compliance, 0) / currentData.length)
-  const excessPassengers = violationTypeData.find((item) => item.type.includes("เกิน 2 คน"))?.count || 0
-  const totalLicensePlates = totalDetections
+  const totalViolations = summary?.total_violations ?? 0
+  const totalDetections = summary?.total_detections ?? 0
+  const compliancePercent = summary?.compliance_percent ?? 0
+  const excessPassengers = summary?.excess_passengers ?? 0
+
+  const violationsDelta = summary && prev ? percentChange(totalViolations, prev.total_violations) : null
+  const detectionsDelta = summary && prev ? percentChange(totalDetections, prev.total_detections) : null
+  const excessDelta = summary && prev ? percentChange(excessPassengers, prev.excess_passengers) : null
+  const complianceDelta =
+    summary && prev ? Math.round((summary.compliance_percent - prev.compliance_percent) * 10) / 10 : null
+
+  // Area/line chart series: display label + per-bucket compliance rate
+  const chartData = useMemo(() => {
+    if (!stats) return []
+    return stats.series.map((bucket) => ({
+      name: formatBucketLabel(bucket.label, stats.bucket_size),
+      total: bucket.total,
+      violations: bucket.violations,
+      compliance:
+        bucket.total > 0
+          ? Math.round(((bucket.total - bucket.violations) / bucket.total) * 100)
+          : null,
+    }))
+  }, [stats])
+
+  // Pie chart shares derived from helmet on/off totals
+  const helmetPieData = useMemo(() => {
+    if (!summary) return []
+    const denominator = summary.helmet_on + summary.helmet_off
+    if (denominator === 0) return []
+    return [
+      {
+        name: t("detection.wearingHelmet"),
+        value: Math.round((summary.helmet_on / denominator) * 100),
+        color: "var(--success-foreground)",
+      },
+      {
+        name: t("detection.notWearingHelmet"),
+        value: Math.round((summary.helmet_off / denominator) * 100),
+        color: "var(--critical-foreground)",
+      },
+    ]
+  }, [summary, t])
+
+  // Localized violation-type rows with share of all recorded violations
+  const violationRows = useMemo(() => {
+    if (!stats) return []
+    const names: Record<string, string> = {
+      no_helmet: t("detection.notWearingHelmet"),
+      over_capacity: t("stats.overCapacity"),
+    }
+    const total = stats.violation_types.reduce((sum, item) => sum + item.count, 0)
+    return stats.violation_types.map((item) => ({
+      type: names[item.type] ?? item.type,
+      count: item.count,
+      percentage: total > 0 ? Math.round((item.count / total) * 100) : 0,
+    }))
+  }, [stats, t])
+
+  // Full-screen fallback while the first load has not produced data yet
+  if (!stats) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-foreground">{t("dashboard.title")}</h2>
+        {error ? (
+          <Card>
+            <CardContent className="p-10 flex flex-col items-center gap-4">
+              <AlertTriangle className="h-10 w-10 text-red-500" />
+              <p className="text-muted-foreground">{t("errors.errorOccurred")}</p>
+              <Button variant="outline" size="sm" onClick={refetch}>
+                {t("buttons.retry")}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <p className="text-muted-foreground">{t("common.loading")}</p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -55,11 +192,16 @@ export function Dashboard() {
         <div>
           <h2 className="text-2xl font-bold text-foreground">{t("dashboard.title")}</h2>
           <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
-          <Badge variant="secondary" className="mt-2 text-xs">Demo Data</Badge>
+          {error && (
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant="secondary" className="text-xs text-critical-foreground">{t("errors.errorOccurred")}</Badge>
+              <Button variant="ghost" size="sm" onClick={refetch}>{t("buttons.retry")}</Button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={timeRange} onValueChange={(value) => setTimeRange(value as StatsTimeRange)}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -78,96 +220,42 @@ export function Dashboard() {
       </div>
 
       {/* Key Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("dashboard.totalViolations")}</p>
-                <p className="text-3xl font-bold text-foreground">{totalViolations}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                  <span className="text-sm text-red-500">+8.5% {t("dashboard.yesterday")}</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          label={t("dashboard.totalViolations")}
+          value={totalViolations}
+          trend={<TrendIndicator delta={violationsDelta} goodWhen="down" vsLabel={t("dashboard.vsPrevPeriod")} />}
+          icon={AlertTriangle}
+          iconBgClass="bg-critical"
+          iconColorClass="text-critical-foreground"
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("dashboard.helmetCompliance")}</p>
-                <p className="text-3xl font-bold text-foreground">{averageCompliance}%</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-500">+2.1% {t("dashboard.yesterday")}</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t("dashboard.helmetCompliance")}
+          value={`${compliancePercent}%`}
+          trend={<TrendIndicator delta={complianceDelta} goodWhen="up" vsLabel={t("dashboard.vsPrevPeriod")} />}
+          icon={Shield}
+          iconBgClass="bg-success"
+          iconColorClass="text-success-foreground"
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("dashboard.totalDetections")}</p>
-                <p className="text-3xl font-bold text-foreground">{totalDetections}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingDown className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm text-blue-500">-1.2% {t("dashboard.yesterday")}</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BikeIcon className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t("dashboard.totalDetections")}
+          value={totalDetections}
+          trend={<TrendIndicator delta={detectionsDelta} goodWhen="up" vsLabel={t("dashboard.vsPrevPeriod")} />}
+          icon={BikeIcon}
+          iconBgClass="bg-info"
+          iconColorClass="text-info-foreground"
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("dashboard.excessPassengers")}</p>
-                <p className="text-3xl font-bold text-foreground">{excessPassengers}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm text-orange-500">+12.3% {t("dashboard.yesterday")}</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("dashboard.totalDetections")}</p>
-                <p className="text-3xl font-bold text-foreground">{totalLicensePlates}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm text-purple-500">+5.7% {t("dashboard.yesterday")}</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <BikeIcon className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t("dashboard.excessPassengers")}
+          value={excessPassengers}
+          trend={<TrendIndicator delta={excessDelta} goodWhen="down" vsLabel={t("dashboard.vsPrevPeriod")} />}
+          icon={Users}
+          iconBgClass="bg-warning"
+          iconColorClass="text-warning-foreground"
+        />
       </div>
 
       {/* Charts Section */}
@@ -177,43 +265,34 @@ export function Dashboard() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{t("dashboard.complianceByDay")}</CardTitle>
-              <Select value={chartType} onValueChange={setChartType}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hourly">{t("dashboard.hourly")}</SelectItem>
-                  <SelectItem value="weekly">{t("dashboard.weekly")}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={currentData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <AreaChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
-                  dataKey={chartType === "hourly" ? "hour" : "day"}
-                  stroke="hsl(var(--muted-foreground))"
+                  dataKey="name"
+                  stroke="var(--muted-foreground)"
                   fontSize={12}
                 />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Area
                   type="monotone"
                   dataKey="violations"
-                  stroke="hsl(var(--chart-3))"
-                  fill="hsl(var(--chart-3))"
+                  stroke="var(--chart-3)"
+                  fill="var(--chart-3)"
                   fillOpacity={0.3}
-                  name="การกระทำผิด"
+                  name={t("dashboard.totalViolations")}
                 />
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(var(--chart-1))"
-                  fill="hsl(var(--chart-1))"
+                  stroke="var(--chart-1)"
+                  fill="var(--chart-1)"
                   fillOpacity={0.1}
-                  name="ทั้งหมด"
+                  name={t("dashboard.totalDetections")}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -229,7 +308,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={helmetComplianceData}
+                  data={helmetPieData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -237,16 +316,16 @@ export function Dashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {helmetComplianceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {helmetPieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex justify-center gap-6 mt-4">
-              {helmetComplianceData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
+              {helmetPieData.map((item) => (
+                <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                   <span className="text-sm text-muted-foreground">{item.name}</span>
                   <span className="text-sm font-medium">{item.value}%</span>
@@ -257,31 +336,30 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* License Plate Detection by Province (removed) */}
-
       {/* Compliance Rate Trend */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{t("dashboard.complianceByDay")}</CardTitle>
+          <CardTitle className="text-lg">{t("stats.complianceRate")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={currentData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
-                dataKey={chartType === "hourly" ? "hour" : "day"}
-                stroke="hsl(var(--muted-foreground))"
+                dataKey="name"
+                stroke="var(--muted-foreground)"
                 fontSize={12}
               />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={[60, 100]} />
+              <YAxis stroke="var(--muted-foreground)" fontSize={12} domain={[0, 100]} />
               <Tooltip contentStyle={tooltipStyle} />
               <Line
                 type="monotone"
                 dataKey="compliance"
-                stroke="hsl(var(--chart-1))"
+                connectNulls
+                stroke="var(--chart-1)"
                 strokeWidth={3}
-                dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2, r: 4 }}
-                name="อัตราการปฏิบัติตาม (%)"
+                dot={{ fill: "var(--chart-1)", strokeWidth: 2, r: 4 }}
+                name={t("stats.complianceRate")}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -295,8 +373,8 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {violationTypeData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+            {violationRows.map((item) => (
+              <div key={item.type} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 bg-chart-3 rounded"></div>
                   <span className="font-medium">{item.type}</span>
