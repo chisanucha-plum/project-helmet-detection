@@ -10,3 +10,6 @@ SQLAlchemy
 psycopg2-binary
 python-jose
 bcrypt
+
+# Dev / test
+pytest>=7.0

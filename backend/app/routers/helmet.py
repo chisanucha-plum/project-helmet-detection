@@ -1,6 +1,8 @@
 import asyncio
 import logging
-from typing import Any
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Any, Iterator, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -9,7 +11,13 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.database.history_status import HistoryStatus
-from app.schemas.helmet import HistoryStatusResponse
+from app.schemas.helmet import (
+    HelmetStatsResponse,
+    HistoryStatusResponse,
+    StatsBucketResponse,
+    StatsSummaryResponse,
+    ViolationTypeCount,
+)
 from app.services.camera_hub import camera_hub
 from app.services.frame_storage import frame_storage
 
@@ -20,6 +28,27 @@ router = APIRouter(tags=["Helmet Detection"])
 # Query parameter limits for history endpoint
 DEFAULT_HISTORY_LIMIT = 50
 MAX_HISTORY_LIMIT = 500
+
+# Date-range limits for the stats endpoint
+DEFAULT_STATS_RANGE_DAYS = 7
+MAX_STATS_RANGE_DAYS = 92
+
+
+def _bucket_label(timestamp: str, bucket_size: str) -> str:
+    """Extract the aggregation label ("YYYY-MM-DD" or "YYYY-MM-DD HH") from a stored timestamp."""
+    return timestamp[:10] if bucket_size == "day" else timestamp[:13]
+
+
+def _iter_bucket_labels(range_from: date, range_to: date, bucket_size: str) -> Iterator[str]:
+    """Yield every bucket label in [range_from, range_to] so charts get zero-filled gaps."""
+    current = range_from
+    while current <= range_to:
+        if bucket_size == "day":
+            yield current.isoformat()
+        else:
+            for hour in range(24):
+                yield f"{current.isoformat()} {hour:02d}"
+        current += timedelta(days=1)
 
 
 @router.get("/stream", status_code=status.HTTP_200_OK)
@@ -97,6 +126,138 @@ async def get_history_records(
         .order_by(desc(HistoryStatus.timestamp))
         .limit(limit)
         .all()
+    )
+
+
+def _parse_date_range(from_date: str | None, to_date: str | None) -> tuple[date, date]:
+    """Resolve the inclusive [from, to] date window, applying defaults and validation.
+
+    Args:
+        from_date: Range start ISO date (default: DEFAULT_STATS_RANGE_DAYS back from to_date)
+        to_date: Range end ISO date (default: today)
+
+    Returns:
+        Validated (range_from, range_to) tuple
+
+    Raises:
+        HTTPException: 422 on malformed, inverted or oversized ranges
+    """
+    try:
+        range_to = date.fromisoformat(to_date) if to_date else date.today()
+        range_from = (
+            date.fromisoformat(from_date)
+            if from_date
+            else range_to - timedelta(days=DEFAULT_STATS_RANGE_DAYS - 1)
+        )
+    except ValueError as e:
+        raise HTTPException(422, f"Invalid date: {e}") from e
+
+    if range_from > range_to:
+        raise HTTPException(422, "'from' must not be after 'to'")
+    if (range_to - range_from).days + 1 > MAX_STATS_RANGE_DAYS:
+        raise HTTPException(
+            422,
+            f"Date range exceeds {MAX_STATS_RANGE_DAYS} days",
+        )
+    return range_from, range_to
+
+
+def _load_rows_in_range(db: Session, range_from: date, range_to: date) -> list[HistoryStatus]:
+    """Load history rows whose stored timestamp falls within [range_from, range_to].
+
+    Timestamps are stored as "YYYY-MM-DD HH:MM:SS" strings, so plain string
+    comparison against ISO dates filters the range correctly.
+    """
+    return (
+        db.query(HistoryStatus)
+        .filter(
+            HistoryStatus.timestamp >= range_from.isoformat(),
+            HistoryStatus.timestamp < (range_to + timedelta(days=1)).isoformat(),
+        )
+        .all()
+    )
+
+
+@dataclass
+class _StatsTotals:
+    """Period-wide counters folded out of history rows."""
+
+    helmet_on: int = 0
+    helmet_off: int = 0
+    excess: int = 0
+
+
+def _accumulate_buckets(
+    buckets: dict[str, StatsBucketResponse],
+    rows: list[HistoryStatus],
+    bucket_size: Literal["hour", "day"],
+) -> _StatsTotals:
+    """Fold rows into their buckets and return the period-wide totals."""
+    totals = _StatsTotals()
+    for row in rows:
+        entry = buckets.get(_bucket_label(row.timestamp or "", bucket_size))
+        if entry is None:
+            continue
+        entry.total += 1
+        if row.violation:
+            entry.violations += 1
+        if row.helmet_status is True:
+            totals.helmet_on += 1
+        elif row.helmet_status is False:
+            totals.helmet_off += 1
+        if row.over_capacity:
+            totals.excess += 1
+    return totals
+
+
+@router.get("/stats", response_model=HelmetStatsResponse)
+async def get_helmet_stats(
+    from_date: str | None = Query(default=None, alias="from", pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    to_date: str | None = Query(default=None, alias="to", pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    bucket: Literal["hour", "day"] = Query(default="day"),
+    db: Session = Depends(get_db),
+) -> HelmetStatsResponse:
+    """Aggregate detection statistics over an inclusive date range.
+
+    Args:
+        from_date: Range start ISO date (default: 7 days back from to_date)
+        to_date: Range end ISO date (default: today)
+        bucket: Time-series granularity
+
+    Returns:
+        Summary totals, zero-filled series and violation breakdown
+    """
+    range_from, range_to = _parse_date_range(from_date, to_date)
+    rows = _load_rows_in_range(db, range_from, range_to)
+
+    buckets = {
+        label: StatsBucketResponse(label=label)
+        for label in _iter_bucket_labels(range_from, range_to, bucket)
+    }
+    totals = _accumulate_buckets(buckets, rows, bucket)
+    violations = sum(entry.violations for entry in buckets.values())
+
+    denominator = totals.helmet_on + totals.helmet_off
+    summary = StatsSummaryResponse(
+        total_detections=len(rows),
+        total_violations=violations,
+        helmet_on=totals.helmet_on,
+        helmet_off=totals.helmet_off,
+        excess_passengers=totals.excess,
+        compliance_percent=round(totals.helmet_on / denominator * 100, 1) if denominator else 0.0,
+    )
+
+    logger.info(f"Stats {range_from}..{range_to} ({bucket}): {len(rows)} records")
+    return HelmetStatsResponse(
+        range_from=range_from.isoformat(),
+        range_to=range_to.isoformat(),
+        bucket_size=bucket,
+        summary=summary,
+        series=list(buckets.values()),
+        violation_types=[
+            ViolationTypeCount(type="no_helmet", count=totals.helmet_off),
+            ViolationTypeCount(type="over_capacity", count=totals.excess),
+        ],
     )
 
 
