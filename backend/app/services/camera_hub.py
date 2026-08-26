@@ -8,7 +8,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from app.configuration import Configuration
+from app.configuration import ApplicationSettingsConfig, Configuration
 from app.database.database import SessionLocal
 from app.database.history_status import HistoryStatus
 from app.models.detection import DetectionRecord
@@ -19,11 +19,23 @@ logger = logging.getLogger(__name__)
 
 # Seconds to wait before retrying a dropped live stream (RTSP/webcam)
 RECONNECT_DELAY_SEC = 2.0
+# Frame queues are latest-wins (drop stale JPEGs); detection queues must not lose records
+FRAME_QUEUE_SIZE = 2
+DETECTION_QUEUE_SIZE = 100
+# Seconds between polls while waiting for the grabber thread's next frame
+IDLE_POLL_SEC = 0.02
 
 
 def _is_stream_url(video_path: str) -> bool:
     """Return True if the video source is a network stream rather than a file."""
     return str(video_path).lower().startswith(("rtsp://", "rtsps://", "http://", "https://"))
+
+
+def _describe_source(app_settings: ApplicationSettingsConfig) -> str:
+    """Return a human-readable name of the configured video source for logs."""
+    if app_settings.use_webcam:
+        return f"webcam id={app_settings.webcam_id}"
+    return app_settings.video_path
 
 
 class CameraHub:
@@ -34,6 +46,10 @@ class CameraHub:
     - Closes the camera when all subscribers disconnect.
     - Broadcasts JPEG frames to MJPEG subscribers.
     - Broadcasts detection payloads to SSE subscribers and persists them to DB.
+
+    Live sources (RTSP/webcam) use a dedicated grabber thread that keeps only
+    the newest frame, so slow inference never lets a backlog build up and
+    stream latency stays bounded at roughly one inference step.
     """
 
     def __init__(self) -> None:
@@ -45,9 +61,13 @@ class CameraHub:
         self._service: DetectionService | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
 
+        # Latest-frame slot shared between grabber thread and processing loop
+        self._latest_frame: np.ndarray | None = None
+        self._latest_lock = threading.Lock()
+
     def subscribe_frames(self) -> asyncio.Queue:
         """Return a queue that receives JPEG bytes for every captured frame."""
-        q: asyncio.Queue = asyncio.Queue(maxsize=2)
+        q: asyncio.Queue = asyncio.Queue(maxsize=FRAME_QUEUE_SIZE)
         with self._lock:
             self._frame_subs.append(q)
             self._ensure_running()
@@ -62,7 +82,7 @@ class CameraHub:
 
     def subscribe_detections(self) -> asyncio.Queue:
         """Return a queue that receives JSON-encoded detection payloads."""
-        q: asyncio.Queue = asyncio.Queue(maxsize=100)
+        q: asyncio.Queue = asyncio.Queue(maxsize=DETECTION_QUEUE_SIZE)
         with self._lock:
             self._detect_subs.append(q)
             self._ensure_running()
@@ -192,6 +212,50 @@ class CameraHub:
 
     # ── worker thread ────────────────────────────────────────────────────────
 
+    def _pop_latest_frame(self) -> np.ndarray | None:
+        """Return the newest grabbed frame (if any) and clear the slot."""
+        with self._latest_lock:
+            frame, self._latest_frame = self._latest_frame, None
+        return frame
+
+    def _grab_loop(self, config: Configuration, service: DetectionService) -> None:
+        """Continuously grab frames from a live source into the latest-frame slot.
+
+        Only the newest frame is kept, so the processing loop always works on
+        fresh input no matter how long inference takes. Reconnects when the
+        source drops instead of seeking (live streams cannot seek).
+
+        Args:
+            config: Application configuration
+            service: Detection service (reset when the stream reconnects)
+        """
+        cap = self._open_capture(config)
+        if not cap.isOpened():
+            logger.error(
+                "Failed to open live video source: "
+                f"{_describe_source(config.application_settings)}"
+            )
+            return
+
+        try:
+            while not self._stop_event.is_set():
+                ret, frame = cap.read()
+                if not ret:
+                    logger.warning("Frame grab failed on live source, reconnecting...")
+                    cap.release()
+                    time.sleep(RECONNECT_DELAY_SEC)
+                    cap = self._open_capture(config)
+                    if cap.isOpened():
+                        service.reset_tracks()
+                        logger.info("Reconnected to live source")
+                    continue
+
+                with self._latest_lock:
+                    self._latest_frame = frame
+        finally:
+            cap.release()
+            logger.info("Grabber thread stopped")
+
     def _get_service(self) -> DetectionService:
         if self._service is None:
             config = Configuration.get_config()
@@ -226,79 +290,81 @@ class CameraHub:
 
         return cv2.VideoCapture(str(Path(app.video_path)))
 
-    def _run(self) -> None:
-        """Background thread loop for continuous video capture and detection.
+    def _process_frame(
+        self, frame: np.ndarray, service: DetectionService, jpeg_quality: int
+    ) -> None:
+        """Run detection on one frame and broadcast the annotation and any records."""
+        annotated, new_records = service.detect_and_track(frame)
 
-        Runs video capture in background thread, performs motorcycle/helmet detection,
-        broadcasts JPEG frames and detection records to subscribers.
+        ok, buf = cv2.imencode(
+            ".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]
+        )
+        if ok:
+            self._push_frame(buf.tobytes())
+
+        if new_records:
+            self._push_detections(new_records, annotated)
+
+    def _run(self) -> None:
+        """Background thread loop for continuous capture and detection.
+
+        For live sources (RTSP/webcam) a dedicated grabber thread keeps only the
+        newest frame so inference lag never accumulates into stream delay. File
+        sources are read sequentially and loop back to the start when finished.
         """
         config = Configuration.get_config()
         service = self._get_service()
         service.reset_tracks()
 
-        cap = self._open_capture(config)
-        if not cap.isOpened():
-            source = (
-                config.application_settings.webcam_id
-                if config.application_settings.use_webcam
-                else config.application_settings.video_path
+        app_settings = config.application_settings
+        is_live_source = app_settings.use_webcam or _is_stream_url(app_settings.video_path)
+
+        grab_thread: threading.Thread | None = None
+        cap: cv2.VideoCapture | None = None
+
+        if is_live_source:
+            grab_thread = threading.Thread(
+                target=self._grab_loop, args=(config, service), daemon=True
             )
-            logger.error(f"Failed to open video source: {source}")
-            return
+            grab_thread.start()
+            logger.info("Live source grabber thread started")
+        else:
+            cap = self._open_capture(config)
+            if not cap.isOpened():
+                logger.error(f"Failed to open video source: {app_settings.video_path}")
+                return
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            logger.info(f"Video properties - FPS: {fps}, Total Frames: {frame_count}")
 
         jpeg_quality = config.model_settings.jpeg_quality
-        source_desc = (
-            f"webcam id={config.application_settings.webcam_id}"
-            if config.application_settings.use_webcam
-            else config.application_settings.video_path
-        )
-        logger.info(f"Started capturing video frames: {source_desc}")
-
-        # Log video properties for debugging
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        logger.info(f"Video properties - FPS: {fps}, Total Frames: {frame_count}")
-
-        is_live_source = config.application_settings.use_webcam or _is_stream_url(
-            config.application_settings.video_path
-        )
+        logger.info(f"Started capturing video frames: {_describe_source(app_settings)}")
 
         try:
-            frame_count_read = 0
+            processed_count = 0
             while not self._stop_event.is_set():
-                ret, frame = cap.read()
-                if not ret:
-                    if is_live_source:
-                        # Live sources can drop frames / disconnect — reopen instead of seeking
-                        logger.warning("Frame grab failed on live source, reconnecting...")
-                        cap.release()
-                        time.sleep(RECONNECT_DELAY_SEC)
-                        cap = self._open_capture(config)
-                        if cap.isOpened():
-                            service.reset_tracks()
-                            logger.info("Reconnected to live source")
+                if is_live_source:
+                    # Always process the freshest grabbed frame; skip stale ones
+                    frame = self._pop_latest_frame()
+                    if frame is None:
+                        if self._stop_event.wait(IDLE_POLL_SEC):
+                            break
                         continue
-                    logger.warning(
-                        f"Video loop complete (read {frame_count_read} frames), restarting..."
-                    )
-                    # Restart video from beginning
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    service.reset_tracks()
-                    continue
+                else:
+                    ret, frame = cap.read()
+                    if not ret:
+                        logger.warning(
+                            f"Video loop complete (read {processed_count} frames), restarting..."
+                        )
+                        # Restart video from beginning
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        service.reset_tracks()
+                        continue
 
-                frame_count_read += 1
+                processed_count += 1
 
                 try:
-                    annotated, new_records = service.detect_and_track(frame)
-
-                    ok, buf = cv2.imencode(
-                        ".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]
-                    )
-                    if ok:
-                        self._push_frame(buf.tobytes())
-
-                    if new_records:
-                        self._push_detections(new_records, annotated)
+                    self._process_frame(frame, service, jpeg_quality)
                 except Exception as e:
                     logger.error(f"Error processing frame: {e}", exc_info=True)
                     continue
@@ -306,8 +372,9 @@ class CameraHub:
         except Exception as e:
             logger.error(f"Unexpected error in video capture loop: {e}", exc_info=True)
         finally:
-            cap.release()
-            logger.info("Video capture closed")
+            if cap is not None:
+                cap.release()
+            logger.info("Video processing stopped")
 
 
 # Module-level singleton — one camera per process

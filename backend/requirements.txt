@@ -1,15 +1,31 @@
+# ── Runtime ─────────────────────────────────────────────────────────────────
 fastapi[standard]
+uvicorn
 ultralytics
 numpy
 opencv-python
 torch
 torchvision
 python-dotenv
-pydantic
+pydantic[email]
 SQLAlchemy
 psycopg2-binary
-python-jose
+python-jose[cryptography]
 bcrypt
 
-# Dev / test
+# Torch builds are machine-specific — install BEFORE `pip install -r`:
+#
+#   CPU-only machines (default):
+#       pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+#   NVIDIA GPU machines:
+#       1. Check driver + CUDA support:  nvidia-smi
+#       2. Install CUDA build (pick the wheel matching your CUDA from
+#          https://pytorch.org/get-started/locally/), e.g.:
+#           pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+#
+#   Then `pip install -r requirements.txt` keeps whichever build is installed.
+#   The app auto-detects the device at startup (cuda → falls back to cpu).
+
+# ── Dev / test ──────────────────────────────────────────────────────────────
 pytest>=7.0
