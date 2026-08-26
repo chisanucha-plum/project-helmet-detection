@@ -13,6 +13,18 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**GPU (optional)** — the app auto-detects CUDA and falls back to CPU. On an
+NVIDIA machine, install the CUDA torch build *before* `pip install -r` so it's
+kept (see instructions in `backend/requirements.txt`):
+
+```powershell
+nvidia-smi                                                        # confirm driver + CUDA
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+```
+
+CPU-only machines need nothing extra — plain `pip install -r requirements.txt`
+installs the CPU build.
+
 **Database** — create it, then set credentials in `backend/.env` (see `.env.example`):
 
 ```sql
@@ -35,7 +47,12 @@ Tables are created automatically on first start — no migrations needed.
 |---|---|
 | Video file | `video_path` in `config.development.json` |
 | USB webcam | `"use_webcam": true`, `"webcam_id": 0` in the same file |
-| RTSP camera | `RTSP_VIDEO_PATH=rtsp://user:pass@ip:554/stream1` in `.env` (overrides both) |
+| RTSP camera | `RTSP_VIDEO_PATH=rtsp://user:pass@ip:554/stream2` in `.env` (overrides both) |
+
+Tip: prefer the camera's **sub-stream** (`stream2`) for detection — it is far
+cheaper to decode and keeps stream latency low. The backend holds only ONE
+RTSP session shared by all viewers, but cameras limit concurrent sessions, so
+don't keep extra VLC/browser streams open.
 
 **Run:**
 
