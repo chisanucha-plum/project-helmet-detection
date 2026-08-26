@@ -106,12 +106,20 @@ Download from releases or external storage as documented in deployment guide.
 
 ## Configuration
 
+Detection thresholds live in the `detection` section of `config.{SITE}.json`.
+Each model uses its own confidence key:
+
 ```json
 {
-  "helmet_conf_threshold": 0.2,
-  "motorcycle_confidence": 0.5,
-  "line_position_percent": 0.5,
-  "max_passengers": 2
+  "detection": {
+    "motorcycle_class_id": 3,
+    "motorcycle_confidence": 0.5,
+    "tracker_name": "bytetrack.yaml",
+    "helmet_confidence": 0.20,
+    "helmet_imgsz": 640,
+    "pad_filter": 80,
+    "line_position_percent": 0.5
+  }
 }
 ```
 

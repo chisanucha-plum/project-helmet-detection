@@ -66,13 +66,14 @@ class DetectionService:
         )
 
     def detect_and_track(
-        self, frame: np.ndarray, conf: float | None = None
-    ) -> tuple[np.ndarray, list[DetectionRecord] | None]:
+        self, frame: np.ndarray
+    ) -> tuple[np.ndarray, list[DetectionRecord]]:
         """Detect motorcycles and analyze helmets in a frame.
+
+        Confidence thresholds and model params come solely from ``self._config``.
 
         Args:
             frame: Input frame (BGR format from OpenCV)
-            conf: Confidence threshold (uses config default if None)
 
         Returns:
             Tuple of (annotated_frame, detection_records)
@@ -84,9 +85,6 @@ class DetectionService:
         """
         if frame is None or frame.size == 0:
             raise ValueError("Invalid or empty frame provided")
-
-        if conf is None:
-            conf = self._config.motorcycle_confidence
 
         new_records: list[DetectionRecord] = []
         h, w = frame.shape[:2]
@@ -100,21 +98,18 @@ class DetectionService:
             )
 
         # Stage 1: Track motorcycles
-        new_records.extend(self._process_motorcycle_tracks(frame, conf))
+        new_records.extend(self._process_motorcycle_tracks(frame))
 
         # Draw detection line
         self._draw_detection_line(frame, h)
 
         return frame, new_records
 
-    def _process_motorcycle_tracks(
-        self, frame: np.ndarray, conf: float
-    ) -> list[DetectionRecord]:
+    def _process_motorcycle_tracks(self, frame: np.ndarray) -> list[DetectionRecord]:
         """Process motorcycle tracking and helmet detection for crossed motorcycles.
 
         Args:
             frame: Current frame
-            conf: Confidence threshold
 
         Returns:
             List of DetectionRecord objects for motorcycles crossing the line
@@ -124,7 +119,7 @@ class DetectionService:
         try:
             result = self._moto_model.track(
                 frame,
-                conf=conf,
+                conf=self._config.motorcycle_confidence,
                 persist=True,
                 tracker=self._config.tracker_name,
                 classes=[self._config.motorcycle_class_id],
@@ -210,8 +205,8 @@ class DetectionService:
         try:
             helmet_result = self._helmet_model(
                 frame,
-                conf=self._config.helmet_detect_confidence,
-                imgsz=self._config.helmet_detect_imgsz,
+                conf=self._config.helmet_confidence,
+                imgsz=self._config.helmet_imgsz,
                 verbose=False,
             )[0]
         except Exception as e:

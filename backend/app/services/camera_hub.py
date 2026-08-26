@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +16,14 @@ from app.services.detect import DetectionService
 from app.services.frame_storage import frame_storage
 
 logger = logging.getLogger(__name__)
+
+# Seconds to wait before retrying a dropped live stream (RTSP/webcam)
+RECONNECT_DELAY_SEC = 2.0
+
+
+def _is_stream_url(video_path: str) -> bool:
+    """Return True if the video source is a network stream rather than a file."""
+    return str(video_path).lower().startswith(("rtsp://", "rtsps://", "http://", "https://"))
 
 
 class CameraHub:
@@ -194,7 +203,7 @@ class CameraHub:
         return self._service
 
     def _open_capture(self, config: Configuration) -> cv2.VideoCapture:
-        """Open video capture from configured source (camera or RTSP stream).
+        """Open video capture from configured source (webcam, RTSP stream, or file).
 
         Args:
             config: Application configuration
@@ -210,9 +219,12 @@ class CameraHub:
             # DirectShow avoids MSMF grab errors on Windows
             return cv2.VideoCapture(app.webcam_id, cv2.CAP_DSHOW)
 
-        # Convert video_path to string to handle Path objects
-        video_path = str(Path(app.video_path))
-        return cv2.VideoCapture(video_path)
+        if _is_stream_url(app.video_path):
+            # Never pass stream URLs through Path() — on Windows it rewrites
+            # "/" to "\", corrupting credentials and host in the URL
+            return cv2.VideoCapture(app.video_path)
+
+        return cv2.VideoCapture(str(Path(app.video_path)))
 
     def _run(self) -> None:
         """Background thread loop for continuous video capture and detection.
@@ -247,11 +259,25 @@ class CameraHub:
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         logger.info(f"Video properties - FPS: {fps}, Total Frames: {frame_count}")
 
+        is_live_source = config.application_settings.use_webcam or _is_stream_url(
+            config.application_settings.video_path
+        )
+
         try:
             frame_count_read = 0
             while not self._stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret:
+                    if is_live_source:
+                        # Live sources can drop frames / disconnect — reopen instead of seeking
+                        logger.warning("Frame grab failed on live source, reconnecting...")
+                        cap.release()
+                        time.sleep(RECONNECT_DELAY_SEC)
+                        cap = self._open_capture(config)
+                        if cap.isOpened():
+                            service.reset_tracks()
+                            logger.info("Reconnected to live source")
+                        continue
                     logger.warning(
                         f"Video loop complete (read {frame_count_read} frames), restarting..."
                     )
@@ -263,10 +289,7 @@ class CameraHub:
                 frame_count_read += 1
 
                 try:
-                    annotated, new_records = service.detect_and_track(
-                        frame,
-                        config.model_settings.helmet_conf_threshold,
-                    )
+                    annotated, new_records = service.detect_and_track(frame)
 
                     ok, buf = cv2.imencode(
                         ".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]

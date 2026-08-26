@@ -18,41 +18,52 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DetectionConfig:
-    """Configuration for motorcycle and helmet detection."""
+    """Configuration for motorcycle and helmet detection.
 
-    pad_filter: int
-    helmet_detect_confidence: float
-    helmet_detect_imgsz: int
+    Confidence thresholds and model params are grouped per model:
+    ``motorcycle_confidence`` feeds the motorcycle tracker, while the
+    ``helmet_*`` fields feed the helmet classifier.
+    """
+
+    # Motorcycle tracking (stage 1)
+    motorcycle_class_id: int
     motorcycle_confidence: float
-    line_position_percent: float
+    tracker_name: str
+
+    # Helmet classification (stage 2)
+    helmet_confidence: float
+    helmet_imgsz: int
     helmet_on_label: str
     helmet_off_label: str
-    motorcycle_class_id: int
-    tracker_name: str
+
+    # Shared geometry / rendering
+    line_position_percent: float
+    pad_filter: int
     line_overlay_alpha: float
 
     @staticmethod
     def from_dict(data: dict) -> "DetectionConfig":
         """Create DetectionConfig from dictionary."""
         return DetectionConfig(
-            pad_filter=data.get("pad_filter", 80),
-            helmet_detect_confidence=data.get("helmet_detect_confidence", 0.20),
-            helmet_detect_imgsz=data.get("helmet_detect_imgsz", 640),
+            motorcycle_class_id=data.get("motorcycle_class_id", 3),
             motorcycle_confidence=data.get("motorcycle_confidence", 0.5),
-            line_position_percent=data.get("line_position_percent", 0.5),
+            tracker_name=data.get("tracker_name", "bytetrack.yaml"),
+            helmet_confidence=data.get("helmet_confidence", 0.20),
+            helmet_imgsz=data.get("helmet_imgsz", 640),
             helmet_on_label=data.get("helmet_on_label", "helmet on"),
             helmet_off_label=data.get("helmet_off_label", "helmet off"),
-            motorcycle_class_id=data.get("motorcycle_class_id", 3),
-            tracker_name=data.get("tracker_name", "bytetrack.yaml"),
+            line_position_percent=data.get("line_position_percent", 0.5),
+            pad_filter=data.get("pad_filter", 80),
             line_overlay_alpha=data.get("line_overlay_alpha", 0.3),
         )
 
 
 @dataclass
 class ModelSettingsConfig:
+    """Model file locations and stream encoding quality."""
+
     moto_model_path: str
     helmet_model_path: str
-    helmet_conf_threshold: float
     jpeg_quality: int
 
     @staticmethod
@@ -60,7 +71,6 @@ class ModelSettingsConfig:
         return ModelSettingsConfig(
             moto_model_path=data.get("moto_model_path", "yolov8n"),
             helmet_model_path=data["helmet_model_path"],
-            helmet_conf_threshold=data["helmet_conf_threshold"],
             jpeg_quality=data.get("jpeg_quality", 60),
         )
 
