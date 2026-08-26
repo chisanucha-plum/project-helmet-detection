@@ -13,10 +13,14 @@ from app.services.detect import DetectionService
 def create_mock_config() -> DetectionConfig:
     """Create a DetectionConfig with realistic test values."""
     config = Mock(spec=DetectionConfig)
-    config.pad_filter = 80
-    config.helmet_detect_confidence = 0.20
-    config.helmet_detect_imgsz = 1280
+    config.motorcycle_class_id = 3
     config.motorcycle_confidence = 0.5
+    config.tracker_name = "bytetrack.yaml"
+    config.helmet_confidence = 0.20
+    config.helmet_imgsz = 640
+    config.helmet_on_label = "helmet on"
+    config.helmet_off_label = "helmet off"
+    config.pad_filter = 80
     config.line_position_percent = 0.5
     config.line_overlay_alpha = 0.5
     return config
@@ -201,6 +205,40 @@ class TestFrameDrawing:
         service._draw_detection_line(frame, height=240)
 
         assert mock_line.called
+
+
+class TestConfidenceWiring:
+    """Ensure each model is called with its own configured confidence."""
+
+    def test_moto_track_uses_motorcycle_confidence(self):
+        """Motorcycle tracker receives motorcycle_confidence from config."""
+        service = make_service()
+        empty_result = Mock()
+        empty_result.boxes = None
+        service._moto_model.track.return_value = [empty_result]
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        service.detect_and_track(frame)
+
+        _, kwargs = service._moto_model.track.call_args
+        assert kwargs["conf"] == service._config.motorcycle_confidence
+
+    def test_helmet_model_uses_helmet_confidence(self):
+        """Helmet classifier receives helmet_confidence from config."""
+        service = make_service()
+        service._line_x = 320
+        service._track_history[1] = 400  # previously right of line
+
+        empty_result = Mock()
+        empty_result.boxes = None
+        empty_result.names = {}
+        service._helmet_model.return_value = [empty_result]
+
+        moto_box = BoundingBox(x1=50, y1=50, x2=150, y2=150)
+        service._analyze_helmets(np.zeros((480, 640, 3), dtype=np.uint8), moto_box, 1)
+
+        _, kwargs = service._helmet_model.call_args
+        assert kwargs["conf"] == service._config.helmet_confidence
 
 
 class TestDetectionServiceInitialization:
