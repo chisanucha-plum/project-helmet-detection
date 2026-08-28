@@ -1,6 +1,6 @@
 # Helmet Compliance & Traffic Violation Detection System
 
-Real-time AI system for detecting helmet violations and motorcycle overcrowding using YOLOv8.
+Real-time AI system for detecting helmet violations and motorcycle overcrowding 
 
 ![Homepage](docs/images/homepage.png)
 

@@ -46,9 +46,11 @@ class DetectionService:
         if not Path(helmet_model_path).exists():
             raise FileNotFoundError(f"Helmet model not found: {helmet_model_path}")
 
-        self._device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        self._device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
         self._moto_model: YOLO = YOLO(str(moto_model_path))
         self._helmet_model: YOLO = YOLO(str(helmet_model_path))
+        self._moto_model.to(self._device)
+        self._helmet_model.to(self._device)
         self._config: DetectionConfig = config
 
         # Track state
@@ -202,12 +204,15 @@ class DetectionService:
             violation=False,
         )
 
+        helmet_frame, offset_x, offset_y = self._create_helmet_roi(frame, moto_box)
+
         try:
             helmet_result = self._helmet_model(
-                frame,
+                helmet_frame,
                 conf=self._config.helmet_confidence,
                 imgsz=self._config.helmet_imgsz,
                 verbose=False,
+                device=self._device,
             )[0]
         except Exception as e:
             logger.error(f"Helmet detection failed for track {track_id}: {e}")
@@ -219,6 +224,12 @@ class DetectionService:
         if helmet_result.boxes and len(helmet_result.boxes) > 0:
             for hbox in helmet_result.boxes:
                 helmet_box = self._extract_box_coords(hbox)
+                helmet_box = BoundingBox(
+                    x1=helmet_box.x1 + offset_x,
+                    y1=helmet_box.y1 + offset_y,
+                    x2=helmet_box.x2 + offset_x,
+                    y2=helmet_box.y2 + offset_y,
+                )
 
                 # Check if helmet is near motorcycle
                 if self._is_helmet_near_motorcycle(helmet_box, moto_box):
@@ -237,7 +248,7 @@ class DetectionService:
         record.passenger_count = len(helmet_labels)
         record.over_capacity = record.passenger_count > 2
         record.helmet_status = (
-            all(l == self._config.helmet_on_label for l in helmet_labels)
+            all(label == self._config.helmet_on_label for label in helmet_labels)
             if helmet_labels
             else False
         )
@@ -251,6 +262,24 @@ class DetectionService:
 
         return record
 
+    def _create_helmet_roi(
+        self, frame: np.ndarray, moto_box: BoundingBox
+    ) -> tuple[np.ndarray, int, int]:
+        """Create a larger local image so distant helmets occupy more pixels."""
+        height, width = frame.shape[:2]
+        box_width = moto_box.x2 - moto_box.x1
+        box_height = moto_box.y2 - moto_box.y1
+        horizontal_pad = max(self._config.pad_filter * 2, box_width * 2)
+        top_pad = max(self._config.pad_filter * 3, box_height * 3)
+        bottom_pad = max(self._config.pad_filter, box_height)
+
+        x1 = max(0, moto_box.x1 - horizontal_pad)
+        y1 = max(0, moto_box.y1 - top_pad)
+        x2 = min(width, moto_box.x2 + horizontal_pad)
+        y2 = min(height, moto_box.y2 + bottom_pad)
+
+        return frame[y1:y2, x1:x2], x1, y1
+
     def _is_helmet_near_motorcycle(
         self, helmet_box: BoundingBox, moto_box: BoundingBox
     ) -> bool:
@@ -263,10 +292,19 @@ class DetectionService:
         Returns:
             True if helmet center is within padded motorcycle area
         """
-        pad = self._config.pad_filter
-        return (moto_box.x1 - pad) <= helmet_box.center_x <= (moto_box.x2 + pad) and (
-            moto_box.y1 - pad
-        ) <= helmet_box.center_y <= (moto_box.y2 + pad)
+        box_width = moto_box.x2 - moto_box.x1
+        box_height = moto_box.y2 - moto_box.y1
+        horizontal_pad = max(self._config.pad_filter * 2, box_width * 2)
+        top_pad = max(self._config.pad_filter * 3, box_height * 3)
+        bottom_pad = max(self._config.pad_filter, box_height)
+        return (
+            moto_box.x1 - horizontal_pad
+            <= helmet_box.center_x
+            <= moto_box.x2 + horizontal_pad
+            and moto_box.y1 - top_pad
+            <= helmet_box.center_y
+            <= moto_box.y2 + bottom_pad
+        )
 
     def _extract_box_coords(self, box: Boxes) -> BoundingBox:
         """Extract bounding box coordinates from YOLO box object.

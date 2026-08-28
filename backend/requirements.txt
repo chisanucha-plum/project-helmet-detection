@@ -24,6 +24,11 @@ bcrypt
 #          https://pytorch.org/get-started/locally/), e.g.:
 #           pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 #
+#   Installed on NVIDIA GeForce RTX 3050 Laptop GPU:
+#       torch==2.13.0+cu126
+#       torchvision==0.28.0+cu126
+#       CUDA runtime: 12.6
+#
 #   Then `pip install -r requirements.txt` keeps whichever build is installed.
 #   The app auto-detects the device at startup (cuda → falls back to cpu).
 
