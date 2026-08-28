@@ -8,7 +8,7 @@ import {
   getStoredUserRole,
   type UserRole,
 } from "@/stores/auth-store"
-import { BarChart3, HelpCircle, Home, Settings, X } from "lucide-react"
+import { BarChart3, HelpCircle, History as HistoryIcon, Home, Settings, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -34,6 +34,12 @@ const getNavItems = (t: (key: string) => string): NavItem[] => [
     label: t("sidebar.home"),
     path: "/real-time-monitoring",
     description: t("sidebar.realtimeMonitoring"),
+  },
+  {
+    icon: HistoryIcon,
+    label: t("sidebar.history"),
+    path: "/history",
+    description: t("sidebar.historyDesc"),
   },
   {
     icon: BarChart3,

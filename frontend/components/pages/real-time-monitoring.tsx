@@ -16,8 +16,11 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
 import { useRealTimeDetections } from "@/hooks/useRealTimeDetections"
 import { useLanguage } from "@/hooks/useLanguage"
+import { loadDisplayPrefs } from "@/lib/app-settings"
+import { playViolationBeep } from "@/lib/alert-sound"
 import { getStreamUrl } from "@/services/helmet-detection.service"
 import { VideoStream } from "@/components/real-time/VideoStream"
 import { DetectionList } from "@/components/real-time/DetectionList"
@@ -74,9 +77,39 @@ function StatCard({ icon: Icon, label, value, bgColor, iconColor }: { icon: Reac
   )
 }
 
+/** Upper bound for the SSE/history buffer regardless of display settings */
+const MAX_SSE_BUFFER = 50
+
 export function RealTimeMonitoring() {
-  const { detections, isLoading, error, isRecording, setIsRecording } = useRealTimeDetections()
   const { t } = useLanguage("en")
+
+  // Client-effective preferences from the settings page (localStorage-backed)
+  const [prefs] = useState(loadDisplayPrefs)
+
+  const handleNewDetections = (batch: DetectionResult[]) => {
+    if (!prefs.notifyInApp && !prefs.notifySound) return
+    const hasViolation = batch.some((detection) => detection.violation)
+    if (!hasViolation) return
+
+    if (prefs.notifyInApp) {
+      toast.error(t("alerts.newViolation"), { description: t("alerts.newViolationDesc") })
+    }
+    if (prefs.notifySound) {
+      playViolationBeep()
+    }
+  }
+
+  const { detections, isLoading, error, isRecording, setIsRecording } = useRealTimeDetections({
+    maxItems: Math.min(prefs.realtimeRows, MAX_SSE_BUFFER),
+    onDetections: handleNewDetections,
+  })
+
+  const visibleDetections = useMemo(
+    () =>
+      prefs.showOnlyViolations ? detections.filter((d) => d.violation) : detections,
+    [detections, prefs.showOnlyViolations]
+  )
+
   const [mjpegUrl, setMjpegUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -122,42 +155,20 @@ export function RealTimeMonitoring() {
 
       <StatsCards detections={detections} isLoading={isLoading} t={t} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Camera className="h-5 w-5" />
-                {t("camera.camera1")}
-                <Badge variant="secondary" className="ml-auto">
-                  {t("camera.live")}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <VideoStream
-                mjpegUrl={mjpegUrl}
-              />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-1">
-          <Card className="flex flex-col h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Camera className="h-4 w-4" />
-                {t("camera.camera2")}
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  {t("camera.live")}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <img src="/f.jpg" alt="Camera 2" className="w-full h-full object-cover rounded-lg" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Camera className="h-5 w-5" />
+            {t("camera.camera1")}
+            <Badge variant="secondary" className="ml-auto">
+              {t("camera.live")}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <VideoStream mjpegUrl={mjpegUrl} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -173,7 +184,7 @@ export function RealTimeMonitoring() {
               <p className="text-muted-foreground">{t("detection.loading")}</p>
             </div>
           ) : (
-            <DetectionList detections={detections} t={t} />
+            <DetectionList detections={visibleDetections} t={t} />
           )}
         </CardContent>
       </Card>

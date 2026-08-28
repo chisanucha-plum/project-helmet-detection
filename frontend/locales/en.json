@@ -29,8 +29,6 @@
   },
   "camera": {
     "camera1": "Camera 1 - Rider Detection",
-    "camera2": "Camera 2 - License Plate",
-    "liveVideoFeed": "Live Video Feed",
     "live": "Live"
   },
   "detection": {
@@ -55,6 +53,8 @@
   "sidebar": {
     "home": "Home",
     "realtimeMonitoring": "Real-time Monitoring",
+    "history": "History",
+    "historyDesc": "Browse events and snapshots",
     "dashboard": "Dashboard",
     "dashboardDesc": "Statistics and Reports",
     "help": "Help",
@@ -132,5 +132,21 @@
     "save": "Save",
     "close": "Close",
     "confirm": "Confirm"
+  },
+  "history": {
+    "title": "Detection History",
+    "subtitle": "Browse recorded events with snapshots (latest 500 records)",
+    "exportCsv": "Export CSV",
+    "filterAll": "All statuses",
+    "filterViolations": "Violations only",
+    "filterCompliant": "Compliant only",
+    "filterOverCapacity": "Over capacity",
+    "dayFilter": "Filter by day",
+    "clearFilters": "Clear filters",
+    "violationsBadge": "Violations"
+  },
+  "alerts": {
+    "newViolation": "Violation detected",
+    "newViolationDesc": "No helmet or over capacity — see the Real-time page for details"
   }
 }

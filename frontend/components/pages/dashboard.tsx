@@ -23,6 +23,7 @@ import {
 
 import { useHelmetStats } from "@/hooks/useHelmetStats"
 import { useLanguage } from "@/hooks/useLanguage"
+import { downloadCsv } from "@/lib/export-csv"
 import type { StatsBucketSize, StatsTimeRange } from "@/types/detection.types"
 
 // Memoize tooltip style to prevent recreation on every render
@@ -163,6 +164,34 @@ export function Dashboard() {
     }))
   }, [stats, t])
 
+  // CSV report of the currently selected range: summary line + per-bucket series
+  const exportReport = () => {
+    if (!stats || !summary) return
+    downloadCsv(
+      `helmet-report-${stats.range_from}_to_${stats.range_to}.csv`,
+      [
+        {
+          metric: "summary",
+          total_detections: summary.total_detections,
+          violations: summary.total_violations,
+          helmet_on: summary.helmet_on,
+          helmet_off: summary.helmet_off,
+          excess_passengers: summary.excess_passengers,
+          compliance_percent: summary.compliance_percent,
+        },
+        ...chartData.map((bucket) => ({
+          metric: bucket.name,
+          total_detections: bucket.total,
+          violations: bucket.violations,
+          helmet_on: "",
+          helmet_off: "",
+          excess_passengers: "",
+          compliance_percent: bucket.compliance ?? "",
+        })),
+      ]
+    )
+  }
+
   // Full-screen fallback while the first load has not produced data yet
   if (!stats) {
     return (
@@ -212,7 +241,7 @@ export function Dashboard() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+          <Button variant="outline" size="sm" className="gap-2 bg-transparent" onClick={exportReport}>
             <Download className="h-4 w-4" />
             {t("dashboard.downloadReport")}
           </Button>

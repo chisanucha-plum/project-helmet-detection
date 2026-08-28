@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AppLayout } from "@/components/app-layout"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -55,6 +56,7 @@ export default function RootLayout({
         <AppLayout>
           <Suspense fallback={null}>{children}</Suspense>
         </AppLayout>
+        <Toaster />
         <Analytics />
       </body>
     </html>

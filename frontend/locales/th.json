@@ -29,8 +29,6 @@
   },
   "camera": {
     "camera1": "Camera 1 - ตรวจจับผู้ขับขี่",
-    "camera2": "Camera 2 - ป้ายทะเบียน",
-    "liveVideoFeed": "ฟีด Live Video",
     "live": "Live"
   },
   "detection": {
@@ -55,6 +53,8 @@
   "sidebar": {
     "home": "หน้าหลัก",
     "realtimeMonitoring": "การตรวจสอบแบบ Real-time",
+    "history": "ประวัติย้อนหลัง",
+    "historyDesc": "ค้นหาเหตุการณ์และภาพถ่าย",
     "dashboard": "แดชบอร์ด",
     "dashboardDesc": "สถิติและรายงาน",
     "help": "ช่วยเหลือ",
@@ -132,5 +132,21 @@
     "save": "บันทึก",
     "close": "ปิด",
     "confirm": "ยืนยัน"
+  },
+  "history": {
+    "title": "ประวัติการตรวจจับย้อนหลัง",
+    "subtitle": "ค้นหาเหตุการณ์ที่บันทึกไว้พร้อมภาพ snapshot (สูงสุด 500 รายการล่าสุด)",
+    "exportCsv": "ส่งออก CSV",
+    "filterAll": "ทุกสถานะ",
+    "filterViolations": "เฉพาะที่ฝ่าฝืน",
+    "filterCompliant": "เฉพาะที่ปกติ",
+    "filterOverCapacity": "นั่งเกิน 2 คน",
+    "dayFilter": "กรองตามวันที่",
+    "clearFilters": "ล้างตัวกรอง",
+    "violationsBadge": "ฝ่าฝืน"
+  },
+  "alerts": {
+    "newViolation": "ตรวจพบการฝ่าฝืน",
+    "newViolationDesc": "ไม่สวมหมวกกันน็อคหรือนั่งเกินกำหนด — ดูรายละเอียดที่หน้า Real-time"
   }
 }

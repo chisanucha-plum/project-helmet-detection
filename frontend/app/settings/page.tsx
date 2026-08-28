@@ -21,6 +21,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { getStoredUserRole } from "@/stores/auth-store"
+import { useLanguage } from "@/hooks/useLanguage"
 import { BellRing, Camera, Save, Settings2, ShieldCheck, UserRound } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
@@ -68,6 +69,9 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [savedMessage, setSavedMessage] = useState("")
   const [role, setRole] = useState<UserRole>("security")
+  // Changing language here applies app-wide immediately via the shared
+  // language-change event, unlike the plain localStorage write.
+  const { language: activeLanguage, setLang } = useLanguage()
 
   useEffect(() => {
     const storedRole = getStoredUserRole()
@@ -182,8 +186,11 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="language">ภาษา</Label>
                 <Select
-                  value={settings.language}
-                  onValueChange={(value) => updateSettings("language", value)}
+                  value={activeLanguage}
+                  onValueChange={(value) => {
+                    updateSettings("language", value)
+                    setLang(value as "th" | "en")
+                  }}
                 >
                   <SelectTrigger id="language" className="w-full">
                     <SelectValue placeholder="เลือกภาษา" />
@@ -217,9 +224,10 @@ export default function SettingsPage() {
             <SettingSwitch
               id="notifyEmail"
               label="แจ้งเตือนทางอีเมล"
-              description="ส่งเหตุการณ์สำคัญไปยังอีเมลที่ลงทะเบียน"
+              description="ส่งเหตุการณ์สำคัญไปยังอีเมลที่ลงทะเบียน (ยังไม่พร้อมใช้ — รอระบบ email ฝั่งเซิร์ฟเวอร์)"
               checked={settings.notifyEmail}
               onCheckedChange={(checked) => updateSettings("notifyEmail", checked)}
+              disabled
             />
             <SettingSwitch
               id="notifySound"
@@ -233,10 +241,7 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="notifyDigest">รูปแบบแจ้งเตือน</Label>
-              <Select
-                value={settings.notifyDigest}
-                onValueChange={(value) => updateSettings("notifyDigest", value)}
-              >
+              <Select value={settings.notifyDigest} onValueChange={(value) => updateSettings("notifyDigest", value)} disabled>
                 <SelectTrigger id="notifyDigest" className="w-full">
                   <SelectValue placeholder="เลือกรูปแบบ" />
                 </SelectTrigger>
@@ -246,6 +251,7 @@ export default function SettingsPage() {
                   <SelectItem value="daily">สรุปรายวัน</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">ขณะนี้ใช้ได้เฉพาะโหมด "ทันที" (ยังไม่มีระบบสรุปฝั่งเซิร์ฟเวอร์)</p>
             </div>
           </CardContent>
         </Card>
@@ -282,6 +288,7 @@ export default function SettingsPage() {
                 <Select
                   value={settings.refreshInterval}
                   onValueChange={(value) => updateSettings("refreshInterval", value)}
+                  disabled
                 >
                   <SelectTrigger id="refreshInterval" className="w-full">
                     <SelectValue placeholder="เลือกช่วงเวลา" />
@@ -292,6 +299,9 @@ export default function SettingsPage() {
                     <SelectItem value="10">10</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  ข้อมูลมาแบบ real-time push (SSE) — ไม่ได้ใช้การ polling แล้ว
+                </p>
               </div>
             </div>
 
@@ -312,7 +322,9 @@ export default function SettingsPage() {
                 <ShieldCheck className="h-4 w-4" />
                 Admin Settings
               </CardTitle>
-              <CardDescription>ค่าระบบที่มีผลต่อการตรวจจับและการจัดเก็บข้อมูล</CardDescription>
+              <CardDescription>
+                ค่าเหล่านี้จัดการฝั่งเซิร์ฟเวอร์ (backend config JSON / .env) — แสดงผลอย่างเดียว ไม่สามารถแก้ไขจากหน้าเว็บได้
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -323,8 +335,9 @@ export default function SettingsPage() {
                 <Input
                   id="cameraSource"
                   value={settings.cameraSource}
-                  onChange={(event) => updateSettings("cameraSource", event.target.value)}
-                  placeholder="rtsp://camera-main"
+                  placeholder="rtsp://..."
+                  disabled
+                  readOnly
                 />
               </div>
 
@@ -334,8 +347,9 @@ export default function SettingsPage() {
                   <Input
                     id="detectionThreshold"
                     value={settings.detectionThreshold}
-                    onChange={(event) => updateSettings("detectionThreshold", event.target.value)}
                     placeholder="0.50"
+                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -344,8 +358,9 @@ export default function SettingsPage() {
                   <Input
                     id="retentionDays"
                     value={settings.retentionDays}
-                    onChange={(event) => updateSettings("retentionDays", event.target.value)}
                     placeholder="30"
+                    disabled
+                    readOnly
                   />
                 </div>
               </div>
@@ -353,9 +368,10 @@ export default function SettingsPage() {
               <SettingSwitch
                 id="snapshotEnabled"
                 label="เปิดการบันทึก Snapshot"
-                description="บันทึกรูปเมื่อพบการกระทำผิดเพื่อใช้ตรวจสอบย้อนหลัง"
+                description="จัดการฝั่งเซิร์ฟเวอร์ — snapshot บันทึกอัตโนมัติเมื่อรถข้ามเส้น"
                 checked={settings.snapshotEnabled}
                 onCheckedChange={(checked) => updateSettings("snapshotEnabled", checked)}
+                disabled
               />
             </CardContent>
           </Card>
@@ -371,6 +387,7 @@ type SettingSwitchProps = {
   description: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
+  disabled?: boolean
 }
 
 function SettingSwitch({
@@ -379,6 +396,7 @@ function SettingSwitch({
   description,
   checked,
   onCheckedChange,
+  disabled,
 }: SettingSwitchProps) {
   return (
     <div className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -386,7 +404,7 @@ function SettingSwitch({
         <Label htmlFor={id}>{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   )
 }
