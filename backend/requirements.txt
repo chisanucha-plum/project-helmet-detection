@@ -2,6 +2,8 @@
 fastapi[standard]
 uvicorn
 ultralytics
+onnxruntime          # inference for the exported .onnx models (CPU)
+# onnxruntime-gpu    # use this instead on the CUDA machine (RTX 3050)
 numpy
 opencv-python
 torch

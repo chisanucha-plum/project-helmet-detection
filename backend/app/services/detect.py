@@ -49,8 +49,15 @@ class DetectionService:
         self._device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
         self._moto_model: YOLO = YOLO(str(moto_model_path))
         self._helmet_model: YOLO = YOLO(str(helmet_model_path))
-        self._moto_model.to(self._device)
-        self._helmet_model.to(self._device)
+
+        # Exported formats (ONNX etc.) reject torch-style .to()/device= — the
+        # runtime chooses its own execution provider
+        self._moto_is_onnx = str(moto_model_path).lower().endswith(".onnx")
+        self._helmet_is_onnx = str(helmet_model_path).lower().endswith(".onnx")
+        if not self._moto_is_onnx:
+            self._moto_model.to(self._device)
+        if not self._helmet_is_onnx:
+            self._helmet_model.to(self._device)
         self._config: DetectionConfig = config
 
         # Track state
@@ -119,6 +126,7 @@ class DetectionService:
         records: list[DetectionRecord] = []
 
         try:
+            device_kw = {} if self._moto_is_onnx else {"device": self._device}
             result = self._moto_model.track(
                 frame,
                 conf=self._config.motorcycle_confidence,
@@ -126,7 +134,7 @@ class DetectionService:
                 tracker=self._config.tracker_name,
                 classes=[self._config.motorcycle_class_id],
                 verbose=False,
-                device=self._device,
+                **device_kw,
             )[0]
         except Exception as e:
             logger.error(f"Motorcycle tracking failed: {e}")
