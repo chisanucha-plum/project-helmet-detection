@@ -29,7 +29,10 @@
   },
   "camera": {
     "camera1": "Camera 1 - ตรวจจับผู้ขับขี่",
-    "live": "Live"
+    "campusMap": "แผนที่วิทยาเขต",
+    "live": "Live",
+    "livePreview": "เปิดดูภาพสด",
+    "expandFullscreen": "ขยายเต็มจอ"
   },
   "detection": {
     "latestResults": "ผลการตรวจจับล่าสุด",

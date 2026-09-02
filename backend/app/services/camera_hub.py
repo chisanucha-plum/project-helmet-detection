@@ -12,7 +12,7 @@ from app.configuration import ApplicationSettingsConfig, Configuration
 from app.database.database import SessionLocal
 from app.database.history_status import HistoryStatus
 from app.models.detection import DetectionRecord
-from app.services.detect import DetectionService
+from app.services.detection import DetectionService
 from app.services.frame_storage import frame_storage
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,11 @@ IDLE_POLL_SEC = 0.02
 
 def _is_stream_url(video_path: str) -> bool:
     """Return True if the video source is a network stream rather than a file."""
-    return str(video_path).lower().startswith(("rtsp://", "rtsps://", "http://", "https://"))
+    return (
+        str(video_path)
+        .lower()
+        .startswith(("rtsp://", "rtsps://", "http://", "https://"))
+    )
 
 
 def _describe_source(app_settings: ApplicationSettingsConfig) -> str:
@@ -260,8 +264,8 @@ class CameraHub:
         if self._service is None:
             config = Configuration.get_config()
             self._service = DetectionService(
-                moto_model_path=Path(config.model_settings.moto_model_path),
-                helmet_model_path=Path(config.model_settings.helmet_model_path),
+                bike_model=Path(config.models.bike_model),
+                helmet_model=Path(config.models.helmet_model),
                 config=config.detection,
             )
         return self._service
@@ -317,7 +321,9 @@ class CameraHub:
         service.reset_tracks()
 
         app_settings = config.application_settings
-        is_live_source = app_settings.use_webcam or _is_stream_url(app_settings.video_path)
+        is_live_source = app_settings.use_webcam or _is_stream_url(
+            app_settings.video_path
+        )
 
         grab_thread: threading.Thread | None = None
         cap: cv2.VideoCapture | None = None
@@ -337,7 +343,7 @@ class CameraHub:
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             logger.info(f"Video properties - FPS: {fps}, Total Frames: {frame_count}")
 
-        jpeg_quality = config.model_settings.jpeg_quality
+        jpeg_quality = config.models.jpeg_quality
         logger.info(f"Started capturing video frames: {_describe_source(app_settings)}")
 
         try:

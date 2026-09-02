@@ -169,3 +169,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Campus map camera pin (teardrop) */
+.pin-wrap {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 7px)); /* anchor = pin tip */
+}
+.pin {
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 0; /* หยดน้ำ/teardrop shape */
+  transform: rotate(-45deg);    /* หมุนให้ปลายแหลมชี้ลง */
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pin-inner {
+  transform: rotate(45deg); /* หมุนกลับให้ตัวเลขอ่านออกปกติ */
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
