@@ -40,7 +40,9 @@ if not args:
     ]
     jobs = [j for j in jobs if str(j[0]).endswith(".pt")]
     if not jobs:
-        sys.exit("config references no .pt models — pass a folder or model.pt explicitly")
+        sys.exit(
+            "config references no .pt models — pass a folder or model.pt explicitly"
+        )
 else:
     dirs = [a for a in args if Path(a).is_dir()]
     files = [a for a in args if not Path(a).is_dir()]
@@ -56,7 +58,9 @@ for pt, size, out in jobs:
     if out and Path(result) != Path(out):
         # ultralytics detects openvino models by the folder name suffix
         if fmt == "openvino" and not str(out).endswith("_openvino_model"):
-            print(f"! {pt}: kept default name {result} — openvino output must end with _openvino_model")
+            print(
+                f"! {pt}: kept default name {result} — openvino output must end with _openvino_model"
+            )
         else:
             Path(result).replace(out)  # ultralytics always writes next to the .pt
             result = out

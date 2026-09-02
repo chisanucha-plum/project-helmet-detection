@@ -12,7 +12,7 @@ from app.configuration import ApplicationSettingsConfig, Configuration
 from app.database.database import SessionLocal
 from app.database.history_status import HistoryStatus
 from app.models.detection import DetectionRecord
-from app.services.detect import DetectionService
+from app.services.detection import DetectionService
 from app.services.frame_storage import frame_storage
 
 logger = logging.getLogger(__name__)
