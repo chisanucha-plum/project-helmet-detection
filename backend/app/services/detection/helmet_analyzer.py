@@ -22,39 +22,41 @@ def extract_box_coords(box: Boxes) -> BoundingBox:
 
 
 def roi_bounds(
-    frame_shape: tuple[int, ...], moto_box: BoundingBox, pad_filter: int
+    frame_shape: tuple[int, ...],
+    moto_box: BoundingBox,
+    side_pad: float,
+    top_pad: float,
+    bottom_pad: float,
 ) -> tuple[int, int, int, int]:
-    """Padded ROI around a motorcycle as (x1, y1, x2, y2).
+    """ROI around a motorcycle as (x1, y1, x2, y2), scaled by box size.
 
-    Heads ride above the motorcycle bbox, so the top pad is the largest and
-    the bottom the smallest. This single function is the only place the pad
-    geometry is defined.
+    All pads are fractions of the motorcycle box dimensions (side pads scale
+    with width, vertical pads with height), so the ROI is scale-invariant
+    across camera distances and resolutions. Heads ride above the bbox, so
+    the top pad is the largest and the bottom the smallest. This is the only
+    place the pad geometry is defined.
     """
     height, width = frame_shape[:2]
     box_width = moto_box.x2 - moto_box.x1
     box_height = moto_box.y2 - moto_box.y1
-    horizontal_pad = max(pad_filter * 2, box_width * 2)
-    top_pad = max(pad_filter * 3, box_height * 3)
-    bottom_pad = max(pad_filter, box_height)
+    horizontal_pad = side_pad * box_width
+    top = top_pad * box_height
+    bottom = bottom_pad * box_height
     return (
-        max(0, moto_box.x1 - horizontal_pad),
-        max(0, moto_box.y1 - top_pad),
-        min(width, moto_box.x2 + horizontal_pad),
-        min(height, moto_box.y2 + bottom_pad),
+        int(max(0, moto_box.x1 - horizontal_pad)),
+        int(max(0, moto_box.y1 - top)),
+        int(min(width, moto_box.x2 + horizontal_pad)),
+        int(min(height, moto_box.y2 + bottom)),
     )
 
 
-def contains_center(
-    bounds: tuple[int, int, int, int], box: BoundingBox
-) -> bool:
+def contains_center(bounds: tuple[int, int, int, int], box: BoundingBox) -> bool:
     """True when a box's center point lies inside the (x1, y1, x2, y2) bounds."""
     x1, y1, x2, y2 = bounds
     return x1 <= box.center_x <= x2 and y1 <= box.center_y <= y2
 
 
-def classify(
-    labels: list[str], on_label: str
-) -> tuple[bool, bool, bool]:
+def classify(labels: list[str], on_label: str) -> tuple[bool, bool, bool]:
     """Reduce helmet labels to (helmet_status, over_capacity, violation).
 
     No labels means nobody was detected: not compliant, but also no proof of a
@@ -101,7 +103,13 @@ class HelmetAnalyzer:
             violation=False,
         )
 
-        x1, y1, x2, y2 = roi_bounds(frame.shape, moto_box, self._config.pad_filter)
+        x1, y1, x2, y2 = roi_bounds(
+            frame.shape,
+            moto_box,
+            self._config.roi_side_pad,
+            self._config.roi_top_pad,
+            self._config.roi_bottom_pad,
+        )
         crop = frame[y1:y2, x1:x2]
         if crop.size == 0:
             logger.warning(f"Empty motorcycle crop for track {track_id}, skipping")
@@ -135,11 +143,16 @@ class HelmetAnalyzer:
 
                 label = result.names[int(hbox.cls.item())]
                 helmet_labels.append(label)
-                draw_box(frame, helmet_box, helmet_color(label, self._config.helmet_on_label), label)
+                draw_box(
+                    frame,
+                    helmet_box,
+                    helmet_color(label, self._config.helmet_on),
+                    label,
+                )
 
         record.passenger_count = len(helmet_labels)
         record.helmet_status, record.over_capacity, record.violation = classify(
-            helmet_labels, self._config.helmet_on_label
+            helmet_labels, self._config.helmet_on
         )
 
         logger.info(

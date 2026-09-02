@@ -27,36 +27,36 @@ class DetectionService:
 
     def __init__(
         self,
-        moto_model_path: Path,
-        helmet_model_path: Path,
+        bike_model: Path,
+        helmet_model: Path,
         config: DetectionConfig,
     ) -> None:
         """Load both models and prepare the crossing counter and analyzer.
 
         Args:
-            moto_model_path: Path to motorcycle model (.pt / .onnx / OpenVINO dir)
-            helmet_model_path: Path to helmet model (any supported format)
+            bike_model: Path to motorcycle model (.pt / .onnx / OpenVINO dir)
+            helmet_model: Path to helmet model (any supported format)
             config: Detection configuration
 
         Raises:
             FileNotFoundError: If a model file does not exist
         """
-        if not Path(moto_model_path).exists():
-            raise FileNotFoundError(f"Motorcycle model not found: {moto_model_path}")
-        if not Path(helmet_model_path).exists():
-            raise FileNotFoundError(f"Helmet model not found: {helmet_model_path}")
+        if not Path(bike_model).exists():
+            raise FileNotFoundError(f"Motorcycle model not found: {bike_model}")
+        if not Path(helmet_model).exists():
+            raise FileNotFoundError(f"Helmet model not found: {helmet_model}")
 
         self._device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self._moto_model: YOLO = YOLO(str(moto_model_path))
-        self._helmet_model: YOLO = YOLO(str(helmet_model_path))
+        self._moto_model: YOLO = YOLO(str(bike_model))
+        self._helmet_model: YOLO = YOLO(str(helmet_model))
 
         # Exported formats (ONNX/OpenVINO/TensorRT...) reject torch-style
         # .to()/device= — their runtime picks the execution provider itself
-        self._moto_is_pt = not str(moto_model_path).lower().endswith(
-            (".onnx", "_openvino_model")
+        self._moto_is_pt = (
+            not str(bike_model).lower().endswith((".onnx", "_openvino_model"))
         )
-        self._helmet_is_pt = not str(helmet_model_path).lower().endswith(
-            (".onnx", "_openvino_model")
+        self._helmet_is_pt = (
+            not str(helmet_model).lower().endswith((".onnx", "_openvino_model"))
         )
         if self._moto_is_pt:
             self._moto_model.to(self._device)
@@ -71,7 +71,9 @@ class DetectionService:
             "DetectionService initialized",
             extra={
                 "device": self._device,
-                "pad_filter": config.pad_filter,
+                "roi_side_pad": config.roi_side_pad,
+                "roi_top_pad": config.roi_top_pad,
+                "roi_bottom_pad": config.roi_bottom_pad,
                 "line_position_percent": config.line_position_percent,
             },
         )
@@ -96,7 +98,9 @@ class DetectionService:
 
         self._counter.ensure_line(frame.shape[1])
         records = self._process_motorcycle_tracks(frame)
-        draw_detection_line(frame, self._counter.line_x, self._config.line_overlay_alpha)
+        draw_detection_line(
+            frame, self._counter.line_x, self._config.line_overlay_alpha
+        )
         return frame, records
 
     def _process_motorcycle_tracks(self, frame: np.ndarray) -> list[DetectionRecord]:
@@ -107,10 +111,10 @@ class DetectionService:
             device_kw = {"device": self._device} if self._moto_is_pt else {}
             result = self._moto_model.track(
                 frame,
-                conf=self._config.motorcycle_confidence,
+                conf=self._config.bike_confidence,
                 persist=True,
-                tracker=self._config.tracker_name,
-                classes=[self._config.motorcycle_class_id],
+                tracker=self._config.tracker,
+                classes=[self._config.bike_id],
                 verbose=False,
                 **device_kw,
             )[0]
@@ -130,9 +134,7 @@ class DetectionService:
             draw_box(frame, moto_box, MOTO_COLOR, f"ID:{track_id}")
 
             if self._counter.observe(track_id, moto_box.center_x):
-                records.append(
-                    self._helmet_analyzer.analyze(frame, moto_box, track_id)
-                )
+                records.append(self._helmet_analyzer.analyze(frame, moto_box, track_id))
 
         return records
 

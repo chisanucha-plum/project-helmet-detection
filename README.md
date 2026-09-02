@@ -112,12 +112,14 @@ Each model uses its own confidence key:
 ```json
 {
   "detection": {
-    "motorcycle_class_id": 3,
-    "motorcycle_confidence": 0.5,
-    "tracker_name": "bytetrack.yaml",
+    "bike_id": 3,
+    "bike_confidence": 0.5,
+    "tracker": "bytetrack.yaml",
     "helmet_confidence": 0.20,
     "helmet_imgsz": 640,
-    "pad_filter": 80,
+    "roi_side_pad": 2.0,
+    "roi_top_pad": 3.0,
+    "roi_bottom_pad": 1.0,
     "line_position_percent": 0.5
   }
 }

@@ -29,11 +29,11 @@ if fmt not in ("onnx", "openvino"):
 
 if not args:
     cfg = json.loads(Path("config.development.json").read_text(encoding="utf-8"))
-    ms = cfg["model_settings"]
+    ms = cfg["models"]
     jobs = [
-        (ms["moto_model_path"], 640, None),
+        (ms["bike_model"], 640, None),
         (
-            ms["helmet_model_path"],
+            ms["helmet_model"],
             cfg["detection"]["helmet_imgsz"],
             None,
         ),

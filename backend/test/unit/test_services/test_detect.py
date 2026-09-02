@@ -22,14 +22,16 @@ from app.services.detection.line_counter import LineCrossingCounter
 def create_mock_config() -> DetectionConfig:
     """Create a DetectionConfig with realistic test values."""
     config = Mock(spec=DetectionConfig)
-    config.motorcycle_class_id = 3
-    config.motorcycle_confidence = 0.5
-    config.tracker_name = "bytetrack.yaml"
+    config.bike_id = 3
+    config.bike_confidence = 0.5
+    config.tracker = "bytetrack.yaml"
     config.helmet_confidence = 0.20
     config.helmet_imgsz = 640
-    config.helmet_on_label = "helmet on"
-    config.helmet_off_label = "helmet off"
-    config.pad_filter = 80
+    config.helmet_on = "helmet on"
+    config.helmet_off = "helmet off"
+    config.roi_side_pad = 2.0
+    config.roi_top_pad = 3.0
+    config.roi_bottom_pad = 1.0
     config.line_position_percent = 0.5
     config.line_overlay_alpha = 0.5
     return config
@@ -37,12 +39,13 @@ def create_mock_config() -> DetectionConfig:
 
 def make_service() -> DetectionService:
     """Create a DetectionService with mocked YOLO model loading."""
-    with patch("app.services.detection.service.YOLO"), patch(
-        "app.services.detection.service.Path.exists", return_value=True
+    with (
+        patch("app.services.detection.service.YOLO"),
+        patch("app.services.detection.service.Path.exists", return_value=True),
     ):
         return DetectionService(
-            moto_model_path=Path("dummy_moto.pt"),
-            helmet_model_path=Path("dummy_helmet.pt"),
+            bike_model=Path("dummy_moto.pt"),
+            helmet_model=Path("dummy_helmet.pt"),
             config=create_mock_config(),
         )
 
@@ -128,17 +131,42 @@ class TestHelmetRoiGeometry:
     """ROI geometry is defined once and reused for crop and containment."""
 
     def test_roi_pads_grow_with_box_size(self):
-        """Top pad is largest and bottom smallest — heads ride above the bbox."""
+        """Pads are fractions of the box: side scales with width, vertical with height."""
         moto_box = BoundingBox(x1=200, y1=200, x2=300, y2=320)
-        bounds = roi_bounds((480, 640, 3), moto_box, pad_filter=80)
+        bounds = roi_bounds(
+            (480, 640, 3), moto_box, side_pad=2.0, top_pad=3.0, bottom_pad=1.0
+        )
 
-        # horizontal=max(160,200)=200, top=max(240,360)=360, bottom=max(80,120)=120
+        # w=100 -> horizontal=200; h=120 -> top=360, bottom=120
         assert bounds == (0, 0, 500, 440)
+
+    def test_roi_scales_with_box_not_fixed_pixels(self):
+        """Same fractions on a half-size box give a half-size ROI padding."""
+        big = roi_bounds(
+            (960, 1280, 3),
+            BoundingBox(x1=400, y1=400, x2=600, y2=640),
+            side_pad=2.0,
+            top_pad=3.0,
+            bottom_pad=1.0,
+        )
+        small = roi_bounds(
+            (480, 640, 3),
+            BoundingBox(x1=200, y1=200, x2=300, y2=320),
+            side_pad=2.0,
+            top_pad=3.0,
+            bottom_pad=1.0,
+        )
+
+        # 2x box -> 2x padding in every direction
+        assert (big[2] - big[0]) == 2 * (small[2] - small[0])
+        assert (big[3] - big[1]) == 2 * (small[3] - small[1])
 
     def test_helmet_center_inside_roi(self):
         """Helmet center inside the ROI bounds returns True."""
         moto_box = BoundingBox(x1=50, y1=50, x2=150, y2=150)
-        bounds = roi_bounds((480, 640, 3), moto_box, pad_filter=80)
+        bounds = roi_bounds(
+            (480, 640, 3), moto_box, side_pad=2.0, top_pad=3.0, bottom_pad=1.0
+        )
         helmet_box = BoundingBox(x1=60, y1=40, x2=90, y2=70)  # center (75, 55)
 
         assert contains_center(bounds, helmet_box) is True
@@ -313,8 +341,8 @@ class TestHelmetAnalyzer:
 class TestConfidenceWiring:
     """Ensure each model is called with its own configured confidence."""
 
-    def test_moto_track_uses_motorcycle_confidence(self):
-        """Motorcycle tracker receives motorcycle_confidence from config."""
+    def test_moto_track_uses_bike_confidence(self):
+        """Motorcycle tracker receives bike_confidence from config."""
         service = make_service()
         empty_result = Mock()
         empty_result.boxes = None
@@ -324,7 +352,7 @@ class TestConfidenceWiring:
         service.detect_and_track(frame)
 
         _, kwargs = service._moto_model.track.call_args
-        assert kwargs["conf"] == service._config.motorcycle_confidence
+        assert kwargs["conf"] == service._config.bike_confidence
 
     def test_helmet_model_uses_helmet_confidence(self):
         """Helmet classifier receives helmet_confidence from config."""
@@ -359,8 +387,8 @@ class TestDetectionServiceInitialization:
         mock_yolo.side_effect = [mock_motorcycle_model, mock_helmet_model]
 
         service = DetectionService(
-            moto_model_path=Path("dummy_moto.pt"),
-            helmet_model_path=Path("dummy_helmet.pt"),
+            bike_model=Path("dummy_moto.pt"),
+            helmet_model=Path("dummy_helmet.pt"),
             config=create_mock_config(),
         )
 

@@ -1,18 +1,20 @@
 {
-  "model_settings": {
-    "moto_model_path": "train/yolov8n.pt",
-    "helmet_model_path": "train/epoch250.pt",
+  "models": {
+    "bike_model": "train/yolov8n.pt",
+    "helmet_model": "train/epoch250.pt",
     "jpeg_quality": 50
   },
   "detection": {
-    "motorcycle_class_id": 3,
-    "motorcycle_confidence": 0.5,
-    "tracker_name": "bytetrack.yaml",
+    "bike_id": 3,
+    "bike_confidence": 0.5,
+    "tracker": "bytetrack.yaml",
     "helmet_confidence": 0.20,
     "helmet_imgsz": 640,
-    "helmet_on_label": "helmet on",
-    "helmet_off_label": "helmet off",
-    "pad_filter": 80,
+    "helmet_on": "helmet on",
+    "helmet_off": "helmet off",
+    "roi_side_pad": 2.0,
+    "roi_top_pad": 3.0,
+    "roi_bottom_pad": 1.0,
     "line_position_percent": 0.5,
     "line_overlay_alpha": 0.3
   },

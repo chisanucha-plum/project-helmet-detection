@@ -42,7 +42,7 @@ cd backend
 .\venv\Scripts\python.exe format\export_model.py train\yolov8n.pt train\yolov8n_openvino_model --format openvino
 
 # helmet candidates — convert then A/B in config.development.json:
-#   "helmet_model_path": "train/<name>_openvino_model"
+#   "helmet_model": "train/<name>_openvino_model"
 .\venv\Scripts\python.exe format\export_model.py train\epoch250.pt train\epoch250_openvino_model --format openvino --imgsz 1280
 .\venv\Scripts\python.exe format\export_model.py train\best_8_250.pt train\best_8_250_openvino_model --format openvino --imgsz 1280
 
@@ -50,7 +50,7 @@ cd backend
 .\venv\Scripts\python.exe format\export_model.py train\epoch250.pt train\epoch250.onnx --imgsz 1280
 ```
 
-After switching `model_settings` paths in config, restart the backend.
+After switching `models` paths in config, restart the backend.
 
 ## Rules that bite
 

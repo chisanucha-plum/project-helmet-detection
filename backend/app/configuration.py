@@ -21,39 +21,45 @@ class DetectionConfig:
     """Configuration for motorcycle and helmet detection.
 
     Confidence thresholds and model params are grouped per model:
-    ``motorcycle_confidence`` feeds the motorcycle tracker, while the
+    ``bike_confidence`` feeds the motorcycle tracker, while the
     ``helmet_*`` fields feed the helmet classifier.
     """
 
     # Motorcycle tracking (stage 1)
-    motorcycle_class_id: int
-    motorcycle_confidence: float
-    tracker_name: str
+    bike_id: int
+    bike_confidence: float
+    tracker: str
 
     # Helmet classification (stage 2)
     helmet_confidence: float
     helmet_imgsz: int
-    helmet_on_label: str
-    helmet_off_label: str
+    helmet_on: str
+    helmet_off: str
 
     # Shared geometry / rendering
     line_position_percent: float
-    pad_filter: int
+    # Helmet ROI padding as fractions of the motorcycle box size —
+    # scale-invariant, so no per-site pixel tuning is needed
+    roi_side_pad: float
+    roi_top_pad: float
+    roi_bottom_pad: float
     line_overlay_alpha: float
 
     @staticmethod
     def from_dict(data: dict) -> "DetectionConfig":
         """Create DetectionConfig from dictionary."""
         return DetectionConfig(
-            motorcycle_class_id=data.get("motorcycle_class_id", 3),
-            motorcycle_confidence=data.get("motorcycle_confidence", 0.5),
-            tracker_name=data.get("tracker_name", "bytetrack.yaml"),
+            bike_id=data.get("bike_id", 3),
+            bike_confidence=data.get("bike_confidence", 0.5),
+            tracker=data.get("tracker", "bytetrack.yaml"),
             helmet_confidence=data.get("helmet_confidence", 0.20),
             helmet_imgsz=data.get("helmet_imgsz", 640),
-            helmet_on_label=data.get("helmet_on_label", "helmet on"),
-            helmet_off_label=data.get("helmet_off_label", "helmet off"),
+            helmet_on=data.get("helmet_on", "helmet on"),
+            helmet_off=data.get("helmet_off", "helmet off"),
             line_position_percent=data.get("line_position_percent", 0.5),
-            pad_filter=data.get("pad_filter", 80),
+            roi_side_pad=data.get("roi_side_pad", 2.0),
+            roi_top_pad=data.get("roi_top_pad", 3.0),
+            roi_bottom_pad=data.get("roi_bottom_pad", 1.0),
             line_overlay_alpha=data.get("line_overlay_alpha", 0.3),
         )
 
@@ -62,15 +68,15 @@ class DetectionConfig:
 class ModelSettingsConfig:
     """Model file locations and stream encoding quality."""
 
-    moto_model_path: str
-    helmet_model_path: str
+    bike_model: str
+    helmet_model: str
     jpeg_quality: int
 
     @staticmethod
     def from_dict(data: dict) -> "ModelSettingsConfig":
         return ModelSettingsConfig(
-            moto_model_path=data.get("moto_model_path", "yolov8n"),
-            helmet_model_path=data["helmet_model_path"],
+            bike_model=data.get("bike_model", "yolov8n"),
+            helmet_model=data["helmet_model"],
             jpeg_quality=data.get("jpeg_quality", 60),
         )
 
@@ -192,7 +198,7 @@ class Key:
 
 @dataclass
 class Configuration:
-    model_settings: ModelSettingsConfig
+    models: ModelSettingsConfig
     application_settings: ApplicationSettingsConfig
     postgres: PostgresConfig
     server: ServerConfig
@@ -203,7 +209,7 @@ class Configuration:
     @staticmethod
     def from_dict(data: dict) -> "Configuration":
         return Configuration(
-            model_settings=ModelSettingsConfig.from_dict(data["model_settings"]),
+            models=ModelSettingsConfig.from_dict(data["models"]),
             application_settings=ApplicationSettingsConfig.from_dict(
                 data["application_settings"]
             ),
