@@ -29,7 +29,10 @@
   },
   "camera": {
     "camera1": "Camera 1 - Rider Detection",
-    "live": "Live"
+    "campusMap": "Campus Map",
+    "live": "Live",
+    "livePreview": "Open live preview",
+    "expandFullscreen": "Expand to fullscreen"
   },
   "detection": {
     "latestResults": "Latest Detection Results",

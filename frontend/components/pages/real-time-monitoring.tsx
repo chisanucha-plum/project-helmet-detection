@@ -11,7 +11,9 @@ import {
   Clock,
   Eye,
   EyeOff,
+  MapPin,
   RotateCw,
+  X,
   Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,9 +24,7 @@ import { useLanguage } from "@/hooks/useLanguage"
 import { loadDisplayPrefs } from "@/lib/app-settings"
 import { playViolationBeep } from "@/lib/alert-sound"
 import { getStreamUrl } from "@/services/helmet-detection.service"
-import { VideoStream } from "@/components/real-time/VideoStream"
 import { DetectionList } from "@/components/real-time/DetectionList"
-import { Badge } from "@/components/ui/badge"
 import type { DetectionResult } from "@/types/detection.types"
 
 function NowClock() {
@@ -79,6 +79,136 @@ function StatCard({ icon: Icon, label, value, bgColor, iconColor }: { icon: Reac
 
 /** Upper bound for the SSE/history buffer regardless of display settings */
 const MAX_SSE_BUFFER = 50
+
+/** Camera location on campus_map.png, as % of image size (building S13) */
+const CAMERA_LOCATION = { x: 29.1, y: 6.1, label: "S13" }
+
+/** Pin gradient by violation rate */
+const LEVEL_STYLES = {
+  high: "linear-gradient(135deg,#E8543E,#C43D2C)", // > 30%
+  mid: "linear-gradient(135deg,#E0A23D,#B87F26)", // 10-30%
+  low: "linear-gradient(135deg,#2F8F63,#22714D)", // < 10%
+} as const
+
+type LevelKey = keyof typeof LEVEL_STYLES
+
+/** Pin color level from violation rate (0-100) */
+function levelFromRate(rate: number): LevelKey {
+  if (rate > 30) return "high"
+  if (rate >= 10) return "mid"
+  return "low"
+}
+
+function CampusMap({ t, mjpegUrl }: { t: (key: string) => string; mjpegUrl?: string }) {
+  const level = levelFromRate(0) // TODO: wire real violation rate
+
+  // Hover preview — shows instantly on pin enter; popup is a DOM child of the
+  // pin wrapper, so moving the cursor onto it keeps the popup open.
+  const [showPreview, setShowPreview] = useState(false)
+
+  const [expanded, setExpanded] = useState(false)
+
+  // ESC closes fullscreen (stream <img> below stays mounted, so closing never refetches)
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false)
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [expanded])
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <MapPin className="h-5 w-5" />
+          {t("camera.campusMap")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-2 pt-0">
+        <div className="relative">
+          <img src="/campus_map.png" alt="KMUTT Bangmod campus map" className="w-full h-auto rounded-md" />
+          <div
+            className="pin-wrap"
+            style={{ left: `${CAMERA_LOCATION.x}%`, top: `${CAMERA_LOCATION.y}%` }}
+            onMouseEnter={() => setShowPreview(true)}
+            onMouseLeave={() => setShowPreview(false)}
+          >
+            <button
+              type="button"
+              className="pin cursor-pointer"
+              style={{ background: LEVEL_STYLES[level] }}
+              onClick={() => setExpanded(true)}
+              aria-label={t("camera.livePreview")}
+            >
+              <div className="pin-inner">{CAMERA_LOCATION.label}</div>
+            </button>
+          </div>
+
+          {/* Single persistent stream layer — hover popup and fullscreen share one <img>,
+              so toggling between them never opens a second MJPEG connection. */}
+          <div
+            className={
+              expanded
+                ? "fixed inset-0 z-50 bg-black"
+                : `absolute z-30 w-80 overflow-hidden rounded-lg border bg-popover shadow-xl ${showPreview ? "visible" : "invisible"}`}
+            style={expanded ? undefined : { left: `calc(${CAMERA_LOCATION.x}% + 12px)`, top: `calc(${CAMERA_LOCATION.y}% - 12px)` }}
+            onMouseEnter={() => setShowPreview(true)}
+            onMouseLeave={() => setShowPreview(false)}
+            onClick={expanded ? () => setExpanded(false) : undefined}
+          >
+          {!expanded && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium border-b">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              {t("camera.camera1")}
+            </div>
+          )}
+          {mjpegUrl ? (
+            <img
+              src={mjpegUrl}
+              alt="Live stream"
+              className={expanded ? "absolute inset-0 h-full w-full object-contain" : "aspect-video w-full object-cover"}
+            />
+          ) : (
+            <div className={`flex aspect-video w-full items-center justify-center bg-muted ${expanded ? "m-auto" : ""}`}>
+              <Camera className={expanded ? "h-12 w-12" : "h-6 w-6"} />
+            </div>
+          )}
+          {!expanded && (
+            <button
+              type="button"
+              className="w-full py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              onClick={() => setExpanded(true)}
+            >
+              {t("camera.expandFullscreen")}
+            </button>
+          )}
+          {expanded && (
+            <>
+              <div className="absolute top-3 left-3 flex items-center gap-2 bg-red-500 text-white px-2 py-1 rounded text-xs">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                REC
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="absolute top-3 right-3"
+                onClick={(e) => { e.stopPropagation(); setExpanded(false) }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
+                {t("camera.camera1")}
+              </div>
+            </>
+          )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function RealTimeMonitoring() {
   const { t } = useLanguage("en")
@@ -155,20 +285,7 @@ export function RealTimeMonitoring() {
 
       <StatsCards detections={detections} isLoading={isLoading} t={t} />
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Camera className="h-5 w-5" />
-            {t("camera.camera1")}
-            <Badge variant="secondary" className="ml-auto">
-              {t("camera.live")}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <VideoStream mjpegUrl={mjpegUrl} />
-        </CardContent>
-      </Card>
+      <CampusMap t={t} mjpegUrl={mjpegUrl} />
 
       <Card>
         <CardHeader>
