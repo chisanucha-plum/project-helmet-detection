@@ -272,10 +272,12 @@ async def get_frame(date: str, filename: str) -> FileResponse:
     Returns:
         JPEG image file
     """
-    filepath = frame_storage.base_dir / date / filename
+    base_dir = frame_storage.base_dir.resolve()
+    filepath = (frame_storage.base_dir / date / filename).resolve()
 
-    if not filepath.exists():
+    if not filepath.is_relative_to(base_dir) or not filepath.is_file():
         raise HTTPException(status_code=404, detail="Frame not found")
 
     logger.debug(f"Serving frame: {filepath}")
     return FileResponse(filepath, media_type="image/jpeg")
+

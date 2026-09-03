@@ -99,8 +99,17 @@ function levelFromRate(rate: number): LevelKey {
   return "low"
 }
 
-function CampusMap({ t, mjpegUrl }: { t: (key: string) => string; mjpegUrl?: string }) {
-  const level = levelFromRate(0) // TODO: wire real violation rate
+function CampusMap({
+  t,
+  mjpegUrl,
+  violationRate = 0,
+}: {
+  t: (key: string) => string
+  mjpegUrl?: string
+  violationRate?: number
+}) {
+  const level = levelFromRate(violationRate)
+
 
   // Hover preview — shows instantly on pin enter; popup is a DOM child of the
   // pin wrapper, so moving the cursor onto it keeps the popup open.
@@ -128,7 +137,7 @@ function CampusMap({ t, mjpegUrl }: { t: (key: string) => string; mjpegUrl?: str
       </CardHeader>
       <CardContent className="p-2 pt-0">
         <div className="relative">
-          <img src="/campus_map.png" alt="KMUTT Bangmod campus map" className="w-full h-auto rounded-md" />
+          <img src="/campus_map.png" alt="KMUTT Bangmod campus map" width={1866} height={1166} className="w-full h-auto rounded-md" />
           <div
             className="pin-wrap"
             style={{ left: `${CAMERA_LOCATION.x}%`, top: `${CAMERA_LOCATION.y}%` }}
@@ -246,6 +255,14 @@ export function RealTimeMonitoring() {
     setMjpegUrl(isRecording ? getStreamUrl() : undefined)
   }, [isRecording])
 
+  const violationRate = useMemo(() => {
+    if (detections.length === 0) return 0
+    const violations = detections.filter(
+      (d) => d.violation || d.helmetStatus === "not-wearing"
+    ).length
+    return Math.round((violations / detections.length) * 100)
+  }, [detections])
+
   return (
     <div className="space-y-6">
       {error && (
@@ -285,7 +302,8 @@ export function RealTimeMonitoring() {
 
       <StatsCards detections={detections} isLoading={isLoading} t={t} />
 
-      <CampusMap t={t} mjpegUrl={mjpegUrl} />
+      <CampusMap t={t} mjpegUrl={mjpegUrl} violationRate={violationRate} />
+
 
       <Card>
         <CardHeader>

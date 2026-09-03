@@ -77,19 +77,18 @@ def _decode_and_verify_token(
         payload = jwt.decode(
             token, config.key.secret_key, algorithms=[config.key.algorithm]
         )
-
-        if token_type and payload.get("type") != token_type:
-            raise TokenDecodeError(f"Wrong token type. Expected {token_type}.")
-
-        return payload
     except ExpiredSignatureError as e:
         raise TokenDecodeError("Token has expired.") from e
     except JWTError as e:
         raise TokenDecodeError(f"Invalid token: {e}") from e
-    except TokenDecodeError:
-        raise
     except Exception as e:
         raise TokenDecodeError(f"Unexpected error during token decoding: {e}") from e
+
+    if token_type and payload.get("type") != token_type:
+        raise TokenDecodeError(f"Wrong token type. Expected {token_type}.")
+
+    return payload
+
 
 
 def create_access_token(

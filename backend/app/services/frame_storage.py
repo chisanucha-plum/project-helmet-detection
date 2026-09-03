@@ -30,15 +30,17 @@ class FrameStorage:
         track_id: int,
         violation: bool,
         quality: int = 80,
+        jpeg_bytes: bytes | None = None,
     ) -> Optional[str]:
         """Save frame to disk.
-        
+
         Args:
             frame: OpenCV frame (numpy array)
             track_id: Motorcycle track ID
             violation: Whether helmet violation detected
             quality: JPEG quality (0-100)
-            
+            jpeg_bytes: Optional pre-encoded JPEG bytes to avoid re-encoding
+
         Returns:
             Relative path to saved image, or None if failed
         """
@@ -54,16 +56,20 @@ class FrameStorage:
             filepath = date_dir / filename
 
             # Save frame
-            ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
-            if ok:
-                filepath.write_bytes(buf.tobytes())
-                # Use forward slash for URL compatibility
-                rel_path = str(filepath.relative_to(self.base_dir)).replace("\\", "/")
-                logger.info(f"Frame saved: {rel_path}")
-                return rel_path
+            if jpeg_bytes is not None:
+                data = jpeg_bytes
             else:
-                logger.warning("Failed to encode frame to JPEG")
-                return None
+                ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
+                if not ok:
+                    logger.warning("Failed to encode frame to JPEG")
+                    return None
+                data = buf.tobytes()
+
+            filepath.write_bytes(data)
+            # Use forward slash for URL compatibility
+            rel_path = str(filepath.relative_to(self.base_dir)).replace("\\", "/")
+            logger.info(f"Frame saved: {rel_path}")
+            return rel_path
 
         except Exception as e:
             logger.error(f"Failed to save frame: {e}", exc_info=True)

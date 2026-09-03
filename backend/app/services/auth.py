@@ -43,12 +43,7 @@ class AuthService:
         Returns:
             Unique username string
         """
-        base_username = email.split("@")[0]
-        base_username = re.sub(r"\W", "", base_username)
-
-        if not base_username:
-            base_username = "user"
-
+        base_username = re.sub(r"\W", "", email.split("@")[0]) or "user"
         username = base_username
         counter = 1
         while self.get_user_by_username(username):
@@ -56,6 +51,7 @@ class AuthService:
             counter += 1
 
         return username
+
 
     def create_user(self, user: UserCreate) -> User:
         """Create new user account.
@@ -108,29 +104,23 @@ class AuthService:
         Raises:
             ServiceError: If credentials invalid or user disabled
         """
-        user_obj = self.get_user_by_email(email_or_username)
-        if not user_obj:
-            user_obj = self.get_user_by_username(email_or_username)
-
-        if not user_obj:
+        user_obj = self.get_user_by_email(email_or_username) or self.get_user_by_username(
+            email_or_username
+        )
+        if (
+            not user_obj
+            or not user_obj.hashed_password
+            or not security.verify_password(password, user_obj.hashed_password)
+        ):
             logger.warning(
                 f"Login attempt with invalid credentials: {email_or_username}"
             )
             raise ServiceError("Invalid credentials")
 
-        if user_obj.hashed_password is None:
-            logger.warning(
-                f"Login attempt for user without password: {email_or_username}"
-            )
-            raise ServiceError("Invalid credentials")
-
-        if not security.verify_password(password, user_obj.hashed_password):
-            logger.warning(f"Failed login attempt for user: {email_or_username}")
-            raise ServiceError("Invalid credentials")
-
         if user_obj.disabled:
             logger.warning(f"Login attempt by disabled user: {email_or_username}")
             raise ServiceError("User account is disabled")
+
 
         try:
             user_obj.last_login = datetime.now(timezone.utc)

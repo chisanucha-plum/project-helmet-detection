@@ -8,18 +8,11 @@ import {
 } from "@/services/helmet-detection.service"
 
 const MAX_DETECTIONS = 50
-// Reconnect cadence for dropped SSE streams and how many consecutive failures
-// before surfacing an error banner instead of silently retrying.
 const SSE_RETRY_DELAY_MS = 5000
 const MAX_SILENT_FAILURES = 3
 
 interface UseRealTimeDetectionsOptions {
-  /** Cap on stored/rendered detections (also caps the initial history load) */
   maxItems?: number
-  /**
-   * Notified with each SSE batch as it arrives — unlike the returned state it
-   * fires only for live events, never for the initial history seed.
-   */
   onDetections?: (detections: DetectionResult[]) => void
 }
 
@@ -28,8 +21,6 @@ export function useRealTimeDetections(
 ): UseRealTimeDetectionsReturn {
   const { maxItems = MAX_DETECTIONS } = options
 
-  // Keep the latest callback in a ref so SSE subscription effects do not
-  // need to depend on (and restart for) a new callback identity per render.
   const onDetectionsRef = useRef(options.onDetections)
   useEffect(() => {
     onDetectionsRef.current = options.onDetections
@@ -40,65 +31,79 @@ export function useRealTimeDetections(
   const [error, setError] = useState<Error | null>(null)
   const [isRecording, setIsRecording] = useState(false)
 
+  const sseRef = useRef<(() => void) | null>(null)
+  const isMountedRef = useRef(true)
+  const failureCountRef = useRef(0)
+
   // Load initial history
   useEffect(() => {
-    let cancelled = false
+    isMountedRef.current = true
 
     const loadHistory = async () => {
       try {
         setIsLoading(true)
         setError(null)
         const history = await fetchHelmetHistory(maxItems)
-        if (!cancelled) setDetections(history)
+        if (isMountedRef.current) setDetections(history)
       } catch (err) {
         const error = err instanceof Error ? err : new Error("Failed to load history")
-        if (!cancelled) setError(error)
+        if (isMountedRef.current) setError(error)
         console.error("Error loading helmet history:", error)
       } finally {
-        if (!cancelled) setIsLoading(false)
+        if (isMountedRef.current) setIsLoading(false)
       }
     }
 
     loadHistory()
     return () => {
-      cancelled = true
+      isMountedRef.current = false
     }
   }, [maxItems])
 
-  // Subscribe to real-time events, auto-reconnecting while recording so a
-  // transient backend restart does not require pressing start again.
+  // SSE subscription - controlled by isRecording
   useEffect(() => {
-    if (!isRecording) return
+    if (!isRecording) {
+      sseRef.current?.()
+      sseRef.current = null
+      return
+    }
 
-    let cancelled = false
+    isMountedRef.current = true
     let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let failureCount = 0
 
     const connect = () => {
-      if (cancelled) return
-      return subscribeToHelmetEvents(
+      if (!isMountedRef.current) return
+      
+      // Clean up previous connection
+      sseRef.current?.()
+      sseRef.current = null
+      failureCountRef.current = 0
+
+      sseRef.current = subscribeToHelmetEvents(
         (newDetections) => {
-          failureCount = 0
+          if (!isMountedRef.current) return
+          failureCountRef.current = 0
           setError(null)
           setDetections((prev) => [...newDetections, ...prev].slice(0, maxItems))
           onDetectionsRef.current?.(newDetections)
         },
         (err) => {
-          if (cancelled) return
-          failureCount += 1
-          console.warn(`Detection stream error (${failureCount}):`, err.message)
-          if (failureCount >= MAX_SILENT_FAILURES) setError(err)
+          if (!isMountedRef.current) return
+          failureCountRef.current += 1
+          console.warn(`Detection stream error (${failureCountRef.current}):`, err.message)
+          if (failureCountRef.current >= MAX_SILENT_FAILURES) setError(err)
           retryTimer = setTimeout(connect, SSE_RETRY_DELAY_MS)
         }
       )
     }
 
-    const unsubscribe = connect()
+    connect()
 
     return () => {
-      cancelled = true
-      if (retryTimer !== null) clearTimeout(retryTimer)
-      unsubscribe?.()
+      isMountedRef.current = false
+      if (retryTimer) clearTimeout(retryTimer)
+      sseRef.current?.()
+      sseRef.current = null
     }
   }, [isRecording, maxItems])
 

@@ -132,16 +132,19 @@ export function HistoryPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
-        <Card>
-          <CardContent className="p-10 flex flex-col items-center gap-3 text-muted-foreground">
-            <HistoryIcon className="h-10 w-10 opacity-50" />
-            <p>{t("common.loading")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <DetectionList detections={filtered} t={t} />
-      )}
+      <div className="relative min-h-[200px]">
+        {!isLoading && <DetectionList detections={filtered} t={t} />}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Card>
+              <CardContent className="p-10 flex flex-col items-center gap-3 text-muted-foreground">
+                <HistoryIcon className="h-10 w-10 opacity-50" />
+                <p>{t("common.loading")}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

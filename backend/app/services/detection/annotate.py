@@ -44,10 +44,18 @@ def draw_detection_line(frame: np.ndarray, line_x: int, alpha: float) -> None:
         line_x: Fixed x-position of the line
         alpha: Blend strength of the line overlay (0-1)
     """
-    height = frame.shape[0]
-    overlay = frame.copy()
-    cv2.line(overlay, (line_x, 0), (line_x, height), (255, 0, 0), 3)
-    cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+    height, width = frame.shape[:2]
+    thickness = 3
+    half = thickness // 2
+    x1 = max(0, line_x - half)
+    x2 = min(width, line_x + half + 1)
+    if x2 <= x1:
+        return
+    sub = frame[:, x1:x2]
+    overlay = sub.copy()
+    cv2.line(overlay, (line_x - x1, 0), (line_x - x1, height), (255, 0, 0), thickness)
+    cv2.addWeighted(overlay, alpha, sub, 1 - alpha, 0, sub)
+
 
 
 def helmet_color(

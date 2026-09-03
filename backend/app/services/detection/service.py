@@ -65,7 +65,9 @@ class DetectionService:
 
         self._config: DetectionConfig = config
         self._counter = LineCrossingCounter(config.line_position_percent)
-        self._helmet_analyzer = HelmetAnalyzer(self._helmet_model, config, self._device)
+        self._helmet_analyzer = HelmetAnalyzer(
+            self._helmet_model, config, self._device, is_pt=self._helmet_is_pt
+        )
 
         logger.info(
             "DetectionService initialized",
@@ -109,15 +111,17 @@ class DetectionService:
 
         try:
             device_kw = {"device": self._device} if self._moto_is_pt else {}
-            result = self._moto_model.track(
-                frame,
-                conf=self._config.bike_confidence,
-                persist=True,
-                tracker=self._config.tracker,
-                classes=[self._config.bike_id],
-                verbose=False,
-                **device_kw,
-            )[0]
+            with torch.inference_mode():
+                result = self._moto_model.track(
+                    frame,
+                    conf=self._config.bike_confidence,
+                    persist=True,
+                    tracker=self._config.tracker,
+                    classes=[self._config.bike_id],
+                    imgsz=640,
+                    verbose=False,
+                    **device_kw,
+                )[0]
         except Exception as e:
             logger.error(f"Motorcycle tracking failed: {e}")
             return records
@@ -131,10 +135,12 @@ class DetectionService:
 
             track_id = int(box.id.item())
             moto_box = extract_box_coords(box)
-            draw_box(frame, moto_box, MOTO_COLOR, f"ID:{track_id}")
 
+            # Analyze on clean crop before drawing motorcycle box onto frame
             if self._counter.observe(track_id, moto_box.center_x):
                 records.append(self._helmet_analyzer.analyze(frame, moto_box, track_id))
+
+            draw_box(frame, moto_box, MOTO_COLOR, f"ID:{track_id}")
 
         return records
 

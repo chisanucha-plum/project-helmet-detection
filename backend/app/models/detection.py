@@ -14,12 +14,13 @@ class BoundingBox:
     @property
     def center_x(self) -> int:
         """Horizontal center of bounding box."""
-        return int((self.x1 + self.x2) / 2)
+        return (self.x1 + self.x2) // 2
 
     @property
     def center_y(self) -> int:
         """Vertical center of bounding box."""
-        return int((self.y1 + self.y2) / 2)
+        return (self.y1 + self.y2) // 2
+
 
     @property
     def width(self) -> int:
