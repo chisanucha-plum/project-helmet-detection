@@ -12,7 +12,7 @@ from app.services.detection.annotate import draw_box, draw_detection_line, helme
 from app.services.detection.helmet_analyzer import (
     HelmetAnalyzer,
     classify,
-    contains_center,
+    sits_on_bike,
     extract_box_coords,
     roi_bounds,
 )
@@ -161,22 +161,33 @@ class TestHelmetRoiGeometry:
         assert (big[2] - big[0]) == 2 * (small[2] - small[0])
         assert (big[3] - big[1]) == 2 * (small[3] - small[1])
 
-    def test_helmet_center_inside_roi(self):
-        """Helmet center inside the ROI bounds returns True."""
+    def test_head_center_inside_moto_box(self):
+        """Head center inside the motorcycle box is a rider."""
         moto_box = BoundingBox(x1=50, y1=50, x2=150, y2=150)
-        bounds = roi_bounds(
-            (480, 640, 3), moto_box, side_pad=2.0, top_pad=3.0, bottom_pad=1.0
-        )
         helmet_box = BoundingBox(x1=60, y1=40, x2=90, y2=70)  # center (75, 55)
 
-        assert contains_center(bounds, helmet_box) is True
+        assert sits_on_bike(moto_box, helmet_box) is True
 
-    def test_helmet_center_far_outside_roi(self):
-        """Helmet center below the ROI bottom edge returns False."""
-        bounds = (100, 100, 300, 300)
-        helmet_box = BoundingBox(x1=300, y1=300, x2=350, y2=350)  # center (325, 325)
+    def test_head_center_above_moto_box(self):
+        """Head center above the box top but within its horizontal span is a rider."""
+        moto_box = BoundingBox(x1=50, y1=100, x2=150, y2=200)
+        helmet_box = BoundingBox(x1=80, y1=40, x2=110, y2=70)  # center (95, 55)
 
-        assert contains_center(bounds, helmet_box) is False
+        assert sits_on_bike(moto_box, helmet_box) is True
+
+    def test_head_center_below_moto_box(self):
+        """Head center below the bike bottom edge is not a rider."""
+        moto_box = BoundingBox(x1=50, y1=50, x2=150, y2=150)
+        helmet_box = BoundingBox(x1=80, y1=180, x2=110, y2=210)  # center (95, 195)
+
+        assert sits_on_bike(moto_box, helmet_box) is False
+
+    def test_head_center_outside_horizontal_span(self):
+        """Head center beyond the bike's side is not a rider, even at head height."""
+        moto_box = BoundingBox(x1=50, y1=50, x2=150, y2=150)
+        helmet_box = BoundingBox(x1=200, y1=40, x2=230, y2=70)  # center (215, 55)
+
+        assert sits_on_bike(moto_box, helmet_box) is False
 
 
 class TestHelmetVerdict:
@@ -321,7 +332,7 @@ class TestHelmetAnalyzer:
     def test_labels_translate_back_to_frame_coordinates(self):
         """Crop-local helmet boxes are offset back onto the annotated frame."""
         raw_box = Mock()
-        raw_box.xyxy = [np.array([10.0, 10.0, 50.0, 60.0])]
+        raw_box.xyxy = [np.array([200.0, 10.0, 240.0, 60.0])]
         raw_box.cls = Mock()
         raw_box.cls.item.return_value = 1  # "helmet on"
         result = Mock()

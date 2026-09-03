@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.configuration import Configuration
 from app.core.auth import get_any_user
-from app.core.error_handlers import handle_db_errors
 from app.core.security import (
+
     clear_refresh_token_cookies,
     create_access_token,
     create_refresh_token,
@@ -36,7 +36,6 @@ router = APIRouter(tags=["user"])
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=Token)
-@handle_db_errors
 def register(
     user: UserCreate,
     response: Response,
@@ -57,7 +56,6 @@ def register(
 
 
 @router.post("/login", status_code=status.HTTP_200_OK, response_model=LoginResponse)
-@handle_db_errors
 def login(
     response: Response,
     data: UserLogin,
@@ -85,7 +83,6 @@ def login(
 
 
 @router.post("/password-request", status_code=status.HTTP_200_OK)
-@handle_db_errors
 def password_request(
     payload: PasswordResetRequest, db: Annotated[Session, Depends(get_db)]
 ) -> dict[str, str]:
@@ -96,7 +93,6 @@ def password_request(
 
 
 @router.post("/password-reset", status_code=status.HTTP_200_OK)
-@handle_db_errors
 def password_reset(
     payload: PasswordResetConfirm, db: Annotated[Session, Depends(get_db)]
 ) -> dict[str, str]:
@@ -107,7 +103,6 @@ def password_reset(
 
 
 @router.post(path="/refresh_token", status_code=status.HTTP_200_OK, response_model=Token)
-@handle_db_errors
 def refresh_access_token(
     response: Response,
     request: Request,
@@ -150,7 +145,6 @@ def refresh_access_token(
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-@handle_db_errors
 def logout(response: Response) -> dict[str, str]:
     """Logout user by clearing refresh token cookie."""
     clear_refresh_token_cookies(response)
@@ -158,8 +152,8 @@ def logout(response: Response) -> dict[str, str]:
 
 
 @router.get("/me", status_code=status.HTTP_200_OK, response_model=UserResponse)
-@handle_db_errors
 def get_user_me(user: Annotated[User, Depends(get_any_user)]) -> UserResponse:
+
     """Get current user information. Returns null for any fields that are null in database."""
     return UserResponse(
         id=user.id,

@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import threading
@@ -68,6 +69,8 @@ class CameraHub:
         # Latest-frame slot shared between grabber thread and processing loop
         self._latest_frame: np.ndarray | None = None
         self._latest_lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="camera-db")
+
 
     def subscribe_frames(self) -> asyncio.Queue:
         """Return a queue that receives JPEG bytes for every captured frame."""
@@ -135,7 +138,9 @@ class CameraHub:
             except Exception as e:
                 logger.debug(f"Failed to push frame to queue: {e}")
 
-        for q in list(self._frame_subs):
+        with self._lock:
+            subs = list(self._frame_subs)
+        for q in subs:
             self._loop.call_soon_threadsafe(_put, q, data)
 
     def _push_detections(
@@ -160,7 +165,9 @@ class CameraHub:
             except Exception as e:
                 logger.debug(f"Failed to push detection to queue: {e}")
 
-        for q in list(self._detect_subs):
+        with self._lock:
+            subs = list(self._detect_subs)
+        for q in subs:
             self._loop.call_soon_threadsafe(_put, q, payload)
 
     # ── persistence ──────────────────────────────────────────────────────────
@@ -175,6 +182,12 @@ class CameraHub:
             frame: OpenCV frame (optional) for saving snapshot
         """
         try:
+            jpeg_bytes = None
+            if frame is not None:
+                ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                if ok:
+                    jpeg_bytes = buf.tobytes()
+
             with SessionLocal() as db:
                 for r in records:
                     record_id = (
@@ -186,7 +199,10 @@ class CameraHub:
                     frame_path = None
                     if frame is not None:
                         frame_path = frame_storage.save_frame(
-                            frame, r.motorcycle_track_id, r.violation
+                            frame,
+                            r.motorcycle_track_id,
+                            r.violation,
+                            jpeg_bytes=jpeg_bytes,
                         )
                         # Update record with frame_path
                         r.frame_path = frame_path
@@ -213,6 +229,7 @@ class CameraHub:
                 "Failed to save detections to database",
                 extra={"error": str(e)},
             )
+
 
     # ── worker thread ────────────────────────────────────────────────────────
 
@@ -285,12 +302,16 @@ class CameraHub:
         app = config.application_settings
         if app.use_webcam:
             # DirectShow avoids MSMF grab errors on Windows
-            return cv2.VideoCapture(app.webcam_id, cv2.CAP_DSHOW)
+            cap = cv2.VideoCapture(app.webcam_id, cv2.CAP_DSHOW)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            return cap
 
         if _is_stream_url(app.video_path):
             # Never pass stream URLs through Path() — on Windows it rewrites
             # "/" to "\", corrupting credentials and host in the URL
-            return cv2.VideoCapture(app.video_path)
+            cap = cv2.VideoCapture(app.video_path)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            return cap
 
         return cv2.VideoCapture(str(Path(app.video_path)))
 
@@ -300,14 +321,20 @@ class CameraHub:
         """Run detection on one frame and broadcast the annotation and any records."""
         annotated, new_records = service.detect_and_track(frame)
 
-        ok, buf = cv2.imencode(
-            ".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]
-        )
-        if ok:
-            self._push_frame(buf.tobytes())
+        with self._lock:
+            has_frame_subs = bool(self._frame_subs)
+
+        if has_frame_subs:
+            ok, buf = cv2.imencode(
+                ".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]
+            )
+            if ok:
+                self._push_frame(buf.tobytes())
 
         if new_records:
-            self._push_detections(new_records, annotated)
+            # Offload persistence and SSE push to background worker thread
+            self._executor.submit(self._push_detections, new_records, annotated.copy())
+
 
     def _run(self) -> None:
         """Background thread loop for continuous capture and detection.

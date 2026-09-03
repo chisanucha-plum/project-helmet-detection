@@ -88,6 +88,17 @@ async def service_error_handler(request: Request, exc: ServiceError) -> JSONResp
     return JSONResponse(status_code=code, content={"detail": msg})
 
 
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+    """Handle database errors globally."""
+    logger.exception("Database error occurred: %s", exc)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Database error occurred"},
+    )
+
+
+
 # Middleware
 app.add_middleware(
     CORSMiddleware,

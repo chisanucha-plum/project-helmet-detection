@@ -3,7 +3,9 @@
 import logging
 
 import numpy as np
+import torch
 from ultralytics.engine.results import Boxes
+
 
 from app.configuration import DetectionConfig
 from app.models.detection import BoundingBox, DetectionRecord
@@ -50,10 +52,14 @@ def roi_bounds(
     )
 
 
-def contains_center(bounds: tuple[int, int, int, int], box: BoundingBox) -> bool:
-    """True when a box's center point lies inside the (x1, y1, x2, y2) bounds."""
-    x1, y1, x2, y2 = bounds
-    return x1 <= box.center_x <= x2 and y1 <= box.center_y <= y2
+def sits_on_bike(moto_box: BoundingBox, box: BoundingBox) -> bool:
+    """True when a head box's center sits inside the motorcycle box or above it.
+
+    Riders sit on the bike: the head center stays within the bike's horizontal
+    span and never below its bottom edge. This rejects heads from pedestrians
+    or neighbouring bikes that the padded ROI pulls in.
+    """
+    return moto_box.x1 <= box.center_x <= moto_box.x2 and box.center_y <= moto_box.y2
 
 
 def classify(labels: list[str], on_label: str) -> tuple[bool, bool, bool]:
@@ -70,17 +76,25 @@ def classify(labels: list[str], on_label: str) -> tuple[bool, bool, bool]:
 class HelmetAnalyzer:
     """Runs the helmet model on a motorcycle ROI and builds the record."""
 
-    def __init__(self, model: object, config: DetectionConfig, device: str) -> None:
+    def __init__(
+        self,
+        model: object,
+        config: DetectionConfig,
+        device: str,
+        is_pt: bool = True,
+    ) -> None:
         """Bind the helmet model, its config, and the inference device.
 
         Args:
             model: Loaded helmet YOLO model (any exported format)
             config: Detection configuration
             device: Torch-style device string passed through to inference
+            is_pt: True if the model is a native PyTorch (.pt) file
         """
         self._model = model
         self._config = config
         self._device = device
+        self._is_pt = is_pt
 
     def analyze(
         self, frame: np.ndarray, moto_box: BoundingBox, track_id: int
@@ -116,13 +130,15 @@ class HelmetAnalyzer:
             return record
 
         try:
-            result = self._model(
-                crop,
-                conf=self._config.helmet_confidence,
-                imgsz=self._config.helmet_imgsz,
-                verbose=False,
-                device=self._device,
-            )[0]
+            device_kw = {"device": self._device} if self._is_pt else {}
+            with torch.inference_mode():
+                result = self._model(
+                    crop,
+                    conf=self._config.helmet_confidence,
+                    imgsz=self._config.helmet_imgsz,
+                    verbose=False,
+                    **device_kw,
+                )[0]
         except Exception as e:
             logger.error(f"Helmet detection failed for track {track_id}: {e}")
             record.violation = True
@@ -138,7 +154,7 @@ class HelmetAnalyzer:
                     x2=helmet_box.x2 + x1,
                     y2=helmet_box.y2 + y1,
                 )
-                if not contains_center((x1, y1, x2, y2), helmet_box):
+                if not sits_on_bike(moto_box, helmet_box):
                     continue
 
                 label = result.names[int(hbox.cls.item())]
