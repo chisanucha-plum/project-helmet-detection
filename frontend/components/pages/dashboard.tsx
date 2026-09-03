@@ -5,33 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle, BikeIcon, Download, Shield, TrendingDown, TrendingUp, Users, type LucideIcon } from "lucide-react"
-import { useState, useMemo, type ReactNode } from "react"
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { useState, useMemo, memo, lazy, Suspense, type ReactNode } from "react"
 
 import { useHelmetStats } from "@/hooks/useHelmetStats"
 import { useLanguage } from "@/hooks/useLanguage"
 import { downloadCsv } from "@/lib/export-csv"
 import type { StatsBucketSize, StatsTimeRange } from "@/types/detection.types"
 
-// Memoize tooltip style to prevent recreation on every render
-const tooltipStyle = {
-  backgroundColor: "var(--popover)",
-  border: "1px solid var(--border)",
-  borderRadius: "8px",
-}
+// Lazy load recharts to reduce initial bundle and delay heavy SVG rendering
+const DashboardCharts = lazy(() => import("@/components/dashboard/DashboardCharts"))
 
 /** Percent change vs the previous period; null when not computable */
 function percentChange(current: number, previous: number): number | null {
@@ -78,7 +60,7 @@ interface StatCardProps {
   iconColorClass: string
 }
 
-function StatCard({ label, value, trend, icon: Icon, iconBgClass, iconColorClass }: StatCardProps) {
+const StatCard = memo(function StatCard({ label, value, trend, icon: Icon, iconBgClass, iconColorClass }: StatCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -95,7 +77,7 @@ function StatCard({ label, value, trend, icon: Icon, iconBgClass, iconColorClass
       </CardContent>
     </Card>
   )
-}
+})
 
 export function Dashboard() {
   const { t } = useLanguage("en")
@@ -115,6 +97,15 @@ export function Dashboard() {
   const excessDelta = summary && prev ? percentChange(excessPassengers, prev.excess_passengers) : null
   const complianceDelta =
     summary && prev ? Math.round((summary.compliance_percent - prev.compliance_percent) * 10) / 10 : null
+
+  // Localized labels - stable across renders when language doesn't change
+  const labels = useMemo(() => ({
+    totalViolations: t("dashboard.totalViolations"),
+    totalDetections: t("dashboard.totalDetections"),
+    complianceRate: t("stats.complianceRate"),
+    wearingHelmet: t("detection.wearingHelmet"),
+    notWearingHelmet: t("detection.notWearingHelmet"),
+  }), [t])
 
   // Area/line chart series: display label + per-bucket compliance rate
   const chartData = useMemo(() => {
@@ -137,17 +128,17 @@ export function Dashboard() {
     if (denominator === 0) return []
     return [
       {
-        name: t("detection.wearingHelmet"),
+        name: labels.wearingHelmet,
         value: Math.round((summary.helmet_on / denominator) * 100),
         color: "var(--success-foreground)",
       },
       {
-        name: t("detection.notWearingHelmet"),
+        name: labels.notWearingHelmet,
         value: Math.round((summary.helmet_off / denominator) * 100),
         color: "var(--critical-foreground)",
       },
     ]
-  }, [summary, t])
+  }, [summary, labels.wearingHelmet, labels.notWearingHelmet])
 
   // Localized violation-type rows with share of all recorded violations
   const violationRows = useMemo(() => {
@@ -288,112 +279,20 @@ export function Dashboard() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Violations Trend Chart */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{t("dashboard.complianceByDay")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--muted-foreground)"
-                  fontSize={12}
-                />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Area
-                  type="monotone"
-                  dataKey="violations"
-                  stroke="var(--chart-3)"
-                  fill="var(--chart-3)"
-                  fillOpacity={0.3}
-                  name={t("dashboard.totalViolations")}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  stroke="var(--chart-1)"
-                  fill="var(--chart-1)"
-                  fillOpacity={0.1}
-                  name={t("dashboard.totalDetections")}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Helmet Compliance Pie Chart */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">{t("dashboard.helmetCompliance")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={helmetPieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {helmetPieData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-6 mt-4">
-              {helmetPieData.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-sm text-muted-foreground">{item.name}</span>
-                  <span className="text-sm font-medium">{item.value}%</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Compliance Rate Trend */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{t("stats.complianceRate")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="name"
-                stroke="var(--muted-foreground)"
-                fontSize={12}
-              />
-              <YAxis stroke="var(--muted-foreground)" fontSize={12} domain={[0, 100]} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Line
-                type="monotone"
-                dataKey="compliance"
-                connectNulls
-                stroke="var(--chart-1)"
-                strokeWidth={3}
-                dot={{ fill: "var(--chart-1)", strokeWidth: 2, r: 4 }}
-                name={t("stats.complianceRate")}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <Suspense fallback={
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card><CardContent className="p-10"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin mx-auto" /></CardContent></Card>
+          <Card><CardContent className="p-10"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin mx-auto" /></CardContent></Card>
+        </div>
+      }>
+        <DashboardCharts 
+          chartData={chartData} 
+          helmetPieData={helmetPieData} 
+          labels={labels} 
+          complianceByDayLabel={t("dashboard.complianceByDay")}
+          helmetComplianceLabel={t("dashboard.helmetCompliance")}
+        />
+      </Suspense>
 
       {/* Violation Types Breakdown */}
       <Card>

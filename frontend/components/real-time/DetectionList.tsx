@@ -2,7 +2,8 @@
 
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Camera, CheckCircle, Users } from "lucide-react"
-import { useState } from "react"
+import { memo, useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { DetectionModal } from "./DetectionModal"
 import { API_BASE_URL } from "@/lib/api/config"
 import type { DetectionResult } from "@/types/detection.types"
@@ -12,7 +13,9 @@ interface DetectionListProps {
   t: (key: string) => string
 }
 
-function DetectionItem({ detection, t }: { detection: DetectionResult; t: (key: string) => string }) {
+/** memo: page-level state (filters, loading) re-renders without item props changing —
+ *  detection/t identities are stable, so 500 items must not re-render with them */
+const DetectionItem = memo(function DetectionItem({ detection, t }: { detection: DetectionResult; t: (key: string) => string }) {
   const [showModal, setShowModal] = useState(false)
 
   return (
@@ -52,16 +55,28 @@ function DetectionItem({ detection, t }: { detection: DetectionResult; t: (key: 
         </div>
       </div>
 
-      <DetectionModal 
-        isOpen={showModal} 
+      <DetectionModal
+        isOpen={showModal}
         imageUrl={`${API_BASE_URL}/helmet/frame/${detection.framePath}`}
-        onClose={() => setShowModal(false)} 
+        onClose={() => setShowModal(false)}
       />
     </>
   )
-}
+})
 
+/** Virtualizer: history loads 500 rows — mounting all costs ~10k DOM nodes
+ *  and heavy layout/image decode. Only visible rows (+overscan) exist in the DOM.
+ *  Own scroll container because the app scrolls inside <main>, not the window. */
 export function DetectionList({ detections, t }: DetectionListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: detections.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 120,
+    overscan: 6,
+  })
+
   if (detections.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -72,10 +87,20 @@ export function DetectionList({ detections, t }: DetectionListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {detections.map((detection) => (
-        <DetectionItem key={detection.id} detection={detection} t={t} />
-      ))}
+    <div ref={scrollRef} className="max-h-[calc(100vh-280px)] overflow-auto rounded-lg">
+      <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => (
+          <div
+            key={detections[virtualRow.index].id}
+            ref={virtualizer.measureElement}
+            data-index={virtualRow.index}
+            className="absolute left-0 w-full pb-4"
+            style={{ transform: `translateY(${virtualRow.start}px)` }}
+          >
+            <DetectionItem detection={detections[virtualRow.index]} t={t} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
