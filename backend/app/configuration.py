@@ -115,6 +115,7 @@ class ApplicationSettingsConfig:
 
 @dataclass
 class PostgresConfig:
+    database_url: str | None
     host: str
     port: int
     user: str
@@ -123,12 +124,20 @@ class PostgresConfig:
 
     @staticmethod
     def from_env() -> "PostgresConfig":
+        database_url = os.environ.get("DATABASE_URL") or os.environ.get(
+            "SUPABASE_DB_URL"
+        )
         return PostgresConfig(
-            host=os.environ.get("DATABASE_HOST", "localhost"),
-            port=int(os.environ.get("DATABASE_PORT", "5432")),
-            user=os.environ.get("DATABASE_USER", "postgres"),
-            password=os.environ.get("DATABASE_PASSWORD", "password"),
-            database=os.environ.get("DATABASE_NAME", "helmet_detection"),
+            database_url=database_url,
+            host=os.environ.get("DATABASE_HOST", os.environ.get("host", "localhost")),
+            port=int(os.environ.get("DATABASE_PORT", os.environ.get("port", "5432"))),
+            user=os.environ.get("DATABASE_USER", os.environ.get("user", "postgres")),
+            password=os.environ.get(
+                "DATABASE_PASSWORD", os.environ.get("password", "password")
+            ),
+            database=os.environ.get(
+                "DATABASE_NAME", os.environ.get("dbname", "helmet_detection")
+            ),
         )
 
 
