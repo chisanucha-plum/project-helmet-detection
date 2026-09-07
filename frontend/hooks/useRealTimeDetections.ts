@@ -111,11 +111,5 @@ export function useRealTimeDetections(
     setIsRecording(value)
   }, [])
 
-  return {
-    detections,
-    isLoading,
-    error,
-    isRecording,
-    setIsRecording: handleSetIsRecording,
-  }
+  return { detections, isLoading, error, isRecording, setIsRecording: handleSetIsRecording }
 }

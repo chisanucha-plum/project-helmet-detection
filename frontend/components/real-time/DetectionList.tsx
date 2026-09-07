@@ -13,6 +13,9 @@ interface DetectionListProps {
   t: (key: string) => string
 }
 
+const VIRTUALIZER_ESTIMATED_SIZE = 120
+const VIRTUALIZER_OVERSCAN = 6
+
 /** memo: page-level state (filters, loading) re-renders without item props changing —
  *  detection/t identities are stable, so 500 items must not re-render with them */
 const DetectionItem = memo(function DetectionItem({ 
@@ -72,8 +75,8 @@ export function DetectionList({ detections, t }: DetectionListProps) {
   const virtualizer = useVirtualizer({
     count: detections.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 120,
-    overscan: 6,
+    estimateSize: () => VIRTUALIZER_ESTIMATED_SIZE,
+    overscan: VIRTUALIZER_OVERSCAN,
   })
 
   const handleImageClick = (framePath: string | undefined) => {

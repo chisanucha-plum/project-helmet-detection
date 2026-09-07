@@ -27,6 +27,11 @@ function formatBucketLabel(label: string, bucketSize: StatsBucketSize): string {
   return `${label.slice(8, 10)}/${label.slice(5, 7)}`
 }
 
+/** Calculate compliance delta as percentage points, not percent */
+function calculateComplianceDelta(current: number, previous: number): number {
+  return Math.round((current - previous) * 10) / 10
+}
+
 interface TrendIndicatorProps {
   delta: number | null
   /** Direction of change considered good for this metric */
@@ -95,8 +100,7 @@ export function Dashboard() {
   const violationsDelta = summary && prev ? percentChange(totalViolations, prev.total_violations) : null
   const detectionsDelta = summary && prev ? percentChange(totalDetections, prev.total_detections) : null
   const excessDelta = summary && prev ? percentChange(excessPassengers, prev.excess_passengers) : null
-  const complianceDelta =
-    summary && prev ? Math.round((summary.compliance_percent - prev.compliance_percent) * 10) / 10 : null
+  const complianceDelta = summary && prev ? calculateComplianceDelta(summary.compliance_percent, prev.compliance_percent) : null
 
   // Localized labels - stable across renders when language doesn't change
   const labels = useMemo(() => ({

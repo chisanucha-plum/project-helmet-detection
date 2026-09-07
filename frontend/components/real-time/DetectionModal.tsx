@@ -1,5 +1,4 @@
-"use client"
-
+import { X } from "lucide-react"
 import { useEffect } from "react"
 
 interface DetectionModalProps {
@@ -43,9 +42,7 @@ export function DetectionModal({ isOpen, imageUrl, onClose }: DetectionModalProp
           className="absolute -top-10 right-0 bg-white/10 text-white rounded-full p-2 hover:bg-white/20 backdrop-blur-sm transition-colors"
           aria-label="Close"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="h-6 w-6" />
         </button>
         <img 
           src={imageUrl} 
